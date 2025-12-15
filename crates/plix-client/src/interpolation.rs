@@ -13,6 +13,10 @@ const INTERPOLATION_DELAY: u32 = 6; // 100ms at 60 Hz
 /// Maximum snapshots to buffer
 const MAX_SNAPSHOTS: usize = 32;
 
+/// Maximum extrapolation distance (blocks) - T060
+/// Clamps render positions to prevent wild extrapolation during packet loss
+const MAX_EXTRAPOLATION_DIST: f32 = 2.0;
+
 /// Snapshot with timing info
 #[derive(Debug, Clone)]
 struct TimedSnapshot {
@@ -102,13 +106,20 @@ impl RemotePlayer {
                     0.0
                 };
 
-                self.display_position = b.snapshot.position.lerp(a.snapshot.position, t);
+                let interpolated = b.snapshot.position.lerp(a.snapshot.position, t);
+
+                // T060: Clamp interpolated position to valid space
+                // Ensure Y doesn't go below ground level (0)
+                self.display_position =
+                    Vec3::new(interpolated.x, interpolated.y.max(0.0), interpolated.z);
+
                 self.display_rotation =
                     lerp_rotation(&b.snapshot.rotation, &a.snapshot.rotation, t);
                 self.display_animation = a.snapshot.animation;
             }
             (Some(b), None) => {
-                // Extrapolate from last known
+                // Extrapolate from last known - T060: clamp to valid space
+                // No extrapolation beyond last known position to prevent wild rendering
                 self.display_position = b.snapshot.position;
                 self.display_rotation = b.snapshot.rotation;
                 self.display_animation = b.snapshot.animation;

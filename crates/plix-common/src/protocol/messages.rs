@@ -35,6 +35,9 @@ pub enum ClientMessage {
 
     /// Block edit request (place/remove)
     BlockEdit(BlockEditRequest),
+
+    /// Toggle ready state for match start (only valid in Lobby phase)
+    ReadyToggle,
 }
 
 // ============================================================================
@@ -123,6 +126,9 @@ pub struct PlayerInput {
     pub yaw: f32,
     /// Look pitch (radians)
     pub pitch: f32,
+    /// RTT measurement nonce (client timestamp in microseconds, echoed by server)
+    #[serde(default)]
+    pub rtt_nonce: u64,
 }
 
 impl PlayerInput {
@@ -138,6 +144,7 @@ impl PlayerInput {
             attack: false,
             yaw: 0.0,
             pitch: 0.0,
+            rtt_nonce: 0,
         }
     }
 }
@@ -173,6 +180,14 @@ pub enum ServerMessage {
         reason: String,
     },
 
+    /// Anti-cheat warning (player has accumulated infractions)
+    Warning {
+        /// Warning message
+        message: String,
+        /// Current strike count
+        strikes: u32,
+    },
+
     /// World state snapshot
     Snapshot(WorldSnapshot),
 
@@ -191,6 +206,9 @@ pub struct WorldSnapshot {
     pub players: Vec<PlayerSnapshot>,
     /// Current match state
     pub match_state: MatchState,
+    /// Echo of client's rtt_nonce for RTT calculation
+    #[serde(default)]
+    pub rtt_nonce_echo: u64,
 }
 
 /// Individual player state in snapshot
@@ -225,28 +243,37 @@ pub enum AnimationState {
 // Match State
 // ============================================================================
 
-/// Current match/round state
+/// Current match/round state broadcast to clients
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MatchState {
     /// Current phase
     pub phase: MatchPhase,
-    /// Current round number
-    pub round_number: u16,
-    /// Tick when round started
-    pub round_start_tick: Tick,
-    /// Round time limit in seconds
-    pub round_time_limit: u32,
-    /// Team scores
+    /// Countdown remaining (seconds, only valid in Countdown phase)
+    pub countdown_remaining: u8,
+    /// Match time remaining (seconds, only valid in Playing phase)
+    pub time_remaining: u32,
+    /// Score limit to win
+    pub score_limit: u16,
+    /// Per-player scores
+    pub player_scores: Vec<PlayerScore>,
+    /// Winner player ID (only set in EndScreen phase, None for tie)
+    pub winner: Option<PlayerId>,
+    /// Current arena name
+    pub arena_name: String,
+    /// Team scores (kept for backwards compatibility)
     pub scores: Vec<TeamScore>,
 }
 
 impl Default for MatchState {
     fn default() -> Self {
         Self {
-            phase: MatchPhase::WaitingForPlayers,
-            round_number: 0,
-            round_start_tick: Tick::ZERO,
-            round_time_limit: 300, // 5 minutes
+            phase: MatchPhase::Lobby,
+            countdown_remaining: 3,
+            time_remaining: 300, // 5 minutes
+            score_limit: 5,
+            player_scores: Vec::new(),
+            winner: None,
+            arena_name: String::new(),
             scores: vec![
                 TeamScore {
                     team: TeamId::TEAM_0,
@@ -261,25 +288,49 @@ impl Default for MatchState {
     }
 }
 
-/// Match phase
+/// Match phase - server-authoritative state
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MatchPhase {
-    /// Waiting for minimum players
-    WaitingForPlayers,
-    /// Countdown before round start
+    /// Waiting for players in lobby, movement allowed, no combat
+    Lobby,
+    /// Countdown before match start (3 seconds default)
     Countdown,
-    /// Round in progress
+    /// Match in progress - full gameplay
     Playing,
-    /// Round ended, showing results
-    RoundEnd,
-    /// Match ended
-    MatchEnd,
+    /// Match ended - showing final scores
+    EndScreen,
+    /// Resetting world for next match
+    Resetting,
 }
 
 impl Default for MatchPhase {
     fn default() -> Self {
-        Self::WaitingForPlayers
+        Self::Lobby
     }
+}
+
+/// Per-player score for match results
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlayerScore {
+    /// Player ID
+    pub player_id: PlayerId,
+    /// Player display name
+    pub name: String,
+    /// Kill count (= score)
+    pub kills: u16,
+    /// Death count
+    pub deaths: u16,
+}
+
+/// Why the match ended
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum MatchEndReason {
+    /// A player reached the score limit
+    ScoreLimit,
+    /// Time limit expired
+    TimeLimit,
+    /// All other players disconnected
+    Forfeit,
 }
 
 /// Team score
@@ -350,10 +401,14 @@ pub enum GameEvent {
         winner: Option<TeamId>,
     },
 
-    /// Match ended
+    /// Match ended with final results
     MatchEnd {
-        /// Winning team (None for draw)
-        winner: Option<TeamId>,
+        /// Winner player ID (None for tie)
+        winner: Option<PlayerId>,
+        /// Final scores for all players
+        scores: Vec<PlayerScore>,
+        /// Reason match ended
+        reason: MatchEndReason,
     },
 
     /// Block edit applied successfully (broadcast to all)
@@ -361,4 +416,34 @@ pub enum GameEvent {
 
     /// Block edit rejected (sent to requester only)
     BlockEditRejected(BlockEditRejected),
+
+    /// Phase transition notification
+    MatchPhaseChanged {
+        /// Previous phase
+        from: MatchPhase,
+        /// New phase
+        to: MatchPhase,
+    },
+
+    /// Countdown tick (broadcast each second during Countdown phase)
+    CountdownTick {
+        /// Seconds remaining (3, 2, 1, 0)
+        remaining: u8,
+    },
+
+    /// Player score changed
+    ScoreUpdate {
+        /// Player whose score changed
+        player_id: PlayerId,
+        /// New kill count
+        kills: u16,
+        /// New death count
+        deaths: u16,
+    },
+
+    /// Arena changed (during Resetting phase)
+    ArenaChanged {
+        /// New arena name
+        name: String,
+    },
 }

@@ -2,17 +2,140 @@
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::time::Duration;
 
 use plix_common::math::{Rotation, Vec3};
+use plix_common::metrics::RollingWindow;
 use plix_common::protocol::{BlockEditRequest, PlayerInput};
 use plix_common::time::Tick;
 use plix_common::types::{InputSeq, PlayerId, TeamId};
+
+use crate::anti_cheat::AntiCheatState;
 
 /// Maximum pending inputs per player
 const MAX_PENDING_INPUTS: usize = 64;
 
 /// Maximum pending block edit requests per player
 const MAX_PENDING_EDITS: usize = 4;
+
+/// Per-session network metrics for monitoring connection quality.
+///
+/// Tracks RTT (Round-Trip Time), jitter, and packet loss for each player connection.
+#[derive(Debug)]
+pub struct SessionNetMetrics {
+    /// Rolling window of RTT measurements
+    rtt_window: RollingWindow<Duration>,
+    /// Last sequence number received (for loss detection)
+    last_seq: u16,
+    /// Total packets received
+    packets_received: u64,
+    /// Total packets detected as lost (sequence gaps)
+    packets_lost: u64,
+}
+
+impl SessionNetMetrics {
+    /// Create new session metrics with default settings.
+    pub fn new() -> Self {
+        Self {
+            rtt_window: RollingWindow::with_defaults(),
+            last_seq: 0,
+            packets_received: 0,
+            packets_lost: 0,
+        }
+    }
+
+    /// Record an RTT measurement.
+    #[inline]
+    pub fn record_rtt(&mut self, rtt: Duration) {
+        self.rtt_window.push(rtt);
+    }
+
+    /// Record a received packet and detect loss from sequence gaps.
+    ///
+    /// Returns the number of packets detected as lost (0 if none).
+    pub fn record_packet(&mut self, seq: u16) -> u32 {
+        self.packets_received += 1;
+
+        if self.packets_received == 1 {
+            // First packet - no loss detection yet
+            self.last_seq = seq;
+            return 0;
+        }
+
+        // Calculate expected next sequence (with wrapping)
+        let expected = self.last_seq.wrapping_add(1);
+
+        // Detect gaps (accounting for wrapping)
+        let lost = if seq == expected {
+            0
+        } else if seq > expected {
+            // Simple gap (seq jumped forward)
+            (seq - expected) as u32
+        } else if expected > 0xFF00 && seq < 0x0100 {
+            // Wrapped around: expected was near max, seq is low
+            // Example: expected=0xFFFE, seq=0x0002 means 4 packets arrived
+            // Lost = (0xFFFF - expected) + seq
+            ((0xFFFF_u32 - expected as u32) + seq as u32) as u32
+        } else {
+            // Out of order or duplicate - don't count as loss
+            0
+        };
+
+        self.packets_lost += lost as u64;
+        self.last_seq = seq;
+        lost
+    }
+
+    /// Get the average RTT in milliseconds.
+    pub fn rtt_avg_ms(&mut self) -> f64 {
+        self.rtt_window.stats_ms().avg
+    }
+
+    /// Get RTT statistics (avg, p95, max, min, count) in milliseconds.
+    pub fn rtt_stats_ms(&mut self) -> plix_common::metrics::Stats {
+        self.rtt_window.stats_ms()
+    }
+
+    /// Calculate jitter as the standard deviation of RTT values.
+    ///
+    /// Returns 0.0 if not enough samples.
+    pub fn jitter_ms(&mut self) -> f64 {
+        let stats = self.rtt_window.stats_ms();
+        if stats.count < 2 {
+            return 0.0;
+        }
+
+        // Use p95 - avg as a simple jitter approximation
+        // A more accurate approach would compute actual std dev,
+        // but this is a reasonable proxy for network instability
+        (stats.p95 - stats.avg).max(0.0)
+    }
+
+    /// Calculate packet loss percentage.
+    pub fn loss_pct(&self) -> f64 {
+        let total = self.packets_received + self.packets_lost;
+        if total == 0 {
+            return 0.0;
+        }
+        (self.packets_lost as f64 / total as f64) * 100.0
+    }
+
+    /// Get total packets received.
+    pub fn packets_received(&self) -> u64 {
+        self.packets_received
+    }
+
+    /// Get total packets lost.
+    pub fn packets_lost(&self) -> u64 {
+        self.packets_lost
+    }
+}
+
+impl Default for SessionNetMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// Server-side player state
 #[derive(Debug)]
@@ -45,6 +168,8 @@ pub struct ServerPlayer {
     pub last_attack_tick: Tick,
     /// Last block edit tick (for rate limiting)
     pub last_edit_tick: Option<Tick>,
+    /// Tick when invulnerability expires (None if vulnerable)
+    pub invulnerable_until_tick: Option<Tick>,
 
     // Input processing
     /// Last processed input sequence
@@ -59,6 +184,20 @@ pub struct ServerPlayer {
     pub kills: u16,
     /// Deaths this round
     pub deaths: u16,
+
+    // Match flow
+    /// Ready state for match start
+    pub is_ready: bool,
+
+    // Anti-cheat
+    /// Per-player anti-cheat state
+    pub anti_cheat: AntiCheatState,
+
+    // Metrics
+    /// Latest RTT nonce from client (for echo in snapshot)
+    pub last_rtt_nonce: u64,
+    /// Per-session network metrics (RTT, jitter, loss)
+    pub net_metrics: SessionNetMetrics,
 }
 
 impl ServerPlayer {
@@ -77,12 +216,22 @@ impl ServerPlayer {
             respawn_tick: None,
             last_attack_tick: Tick::ZERO,
             last_edit_tick: None,
+            invulnerable_until_tick: None,
             last_input_seq: InputSeq::default(),
             pending_inputs: Vec::with_capacity(MAX_PENDING_INPUTS),
             pending_edits: Vec::with_capacity(MAX_PENDING_EDITS),
             kills: 0,
             deaths: 0,
+            is_ready: false,
+            anti_cheat: AntiCheatState::default(),
+            last_rtt_nonce: 0,
+            net_metrics: SessionNetMetrics::new(),
         }
+    }
+
+    /// Clear ready state for new match
+    pub fn clear_ready(&mut self) {
+        self.is_ready = false;
     }
 
     /// Queue an input for processing
@@ -126,14 +275,35 @@ impl ServerPlayer {
         self.deaths = 0;
     }
 
-    /// Spawn player at position
-    pub fn spawn(&mut self, position: Vec3, yaw: f32) {
+    /// Spawn player at position with optional invulnerability
+    ///
+    /// If `invuln_ticks` is Some, sets invulnerability for that many ticks from `current_tick`.
+    /// Use `None` for initial spawn (no invulnerability) or `Some(config.respawn_invuln_ticks)` for respawn.
+    pub fn spawn(
+        &mut self,
+        position: Vec3,
+        yaw: f32,
+        current_tick: Tick,
+        invuln_ticks: Option<u32>,
+    ) {
         self.position = position;
         self.rotation = Rotation::new(yaw, 0.0);
         self.velocity = Vec3::ZERO;
         self.health = 100;
         self.is_dead = false;
         self.respawn_tick = None;
+        // Set invulnerability if specified (T038 - US4)
+        self.invulnerable_until_tick = invuln_ticks.map(|ticks| Tick(current_tick.0 + ticks));
+        // Reset anti-cheat position tracking for new spawn location
+        self.anti_cheat.update_position(position);
+    }
+
+    /// Check if player is currently invulnerable
+    #[inline]
+    pub fn is_invulnerable(&self, current_tick: Tick) -> bool {
+        self.invulnerable_until_tick
+            .map(|until| current_tick.0 < until.0)
+            .unwrap_or(false)
     }
 
     /// Kill the player
@@ -263,6 +433,30 @@ impl SessionManager {
     pub fn player_ids(&self) -> Vec<PlayerId> {
         self.players.keys().copied().collect()
     }
+
+    /// Count ready players
+    pub fn ready_count(&self) -> usize {
+        self.players.values().filter(|p| p.is_ready).count()
+    }
+
+    /// Check if all players are ready
+    pub fn all_ready(&self) -> bool {
+        !self.players.is_empty() && self.players.values().all(|p| p.is_ready)
+    }
+
+    /// Clear ready state for all players
+    pub fn clear_all_ready(&mut self) {
+        for player in self.players.values_mut() {
+            player.clear_ready();
+        }
+    }
+
+    /// Reset all player stats (kills/deaths)
+    pub fn reset_all_stats(&mut self) {
+        for player in self.players.values_mut() {
+            player.reset_stats();
+        }
+    }
 }
 
 #[cfg(test)]
@@ -319,5 +513,81 @@ mod tests {
         assert!(player.take_damage(50, Tick(100)));
         assert!(player.is_dead);
         assert_eq!(player.deaths, 1);
+    }
+
+    // SessionNetMetrics tests (T023-T025)
+
+    #[test]
+    fn test_session_net_metrics_rtt() {
+        let mut metrics = SessionNetMetrics::new();
+
+        metrics.record_rtt(Duration::from_millis(50));
+        metrics.record_rtt(Duration::from_millis(60));
+        metrics.record_rtt(Duration::from_millis(70));
+
+        let avg = metrics.rtt_avg_ms();
+        assert!((avg - 60.0).abs() < 1.0, "RTT avg should be ~60ms");
+    }
+
+    #[test]
+    fn test_session_net_metrics_jitter() {
+        let mut metrics = SessionNetMetrics::new();
+
+        // Add varying RTT values
+        metrics.record_rtt(Duration::from_millis(50));
+        metrics.record_rtt(Duration::from_millis(55));
+        metrics.record_rtt(Duration::from_millis(60));
+        metrics.record_rtt(Duration::from_millis(100)); // Spike
+
+        let jitter = metrics.jitter_ms();
+        // Jitter should be non-zero due to the spike
+        assert!(jitter > 0.0, "Jitter should be > 0 with varying RTT");
+    }
+
+    #[test]
+    fn test_session_net_metrics_packet_loss() {
+        let mut metrics = SessionNetMetrics::new();
+
+        // Receive packets 1, 2, 5 (missing 3, 4)
+        assert_eq!(metrics.record_packet(1), 0); // First packet, no loss
+        assert_eq!(metrics.record_packet(2), 0); // Sequential, no loss
+        assert_eq!(metrics.record_packet(5), 2); // Gap of 2 (missing 3, 4)
+
+        assert_eq!(metrics.packets_received(), 3);
+        assert_eq!(metrics.packets_lost(), 2);
+
+        let loss = metrics.loss_pct();
+        // 2 lost out of 5 total = 40%
+        assert!((loss - 40.0).abs() < 1.0, "Loss should be ~40%");
+    }
+
+    #[test]
+    fn test_session_net_metrics_no_loss() {
+        let mut metrics = SessionNetMetrics::new();
+
+        // Sequential packets - no loss
+        for i in 1..=10 {
+            metrics.record_packet(i);
+        }
+
+        assert_eq!(metrics.packets_lost(), 0);
+        assert!((metrics.loss_pct() - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_session_net_metrics_wrapping_sequence() {
+        let mut metrics = SessionNetMetrics::new();
+
+        // Start near max sequence
+        metrics.record_packet(0xFFFC);
+        metrics.record_packet(0xFFFD);
+        metrics.record_packet(0xFFFE);
+        metrics.record_packet(0xFFFF);
+        // Wrap around
+        metrics.record_packet(0x0000);
+        metrics.record_packet(0x0001);
+
+        // Should detect no loss during proper wraparound
+        assert_eq!(metrics.packets_lost(), 0);
     }
 }

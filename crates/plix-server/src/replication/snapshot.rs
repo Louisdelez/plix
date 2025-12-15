@@ -44,6 +44,7 @@ impl SnapshotGenerator {
             last_input_seq,
             players,
             match_state: match_state.clone(),
+            rtt_nonce_echo: 0, // RTT echo is set per-client in main server loop
         }
     }
 

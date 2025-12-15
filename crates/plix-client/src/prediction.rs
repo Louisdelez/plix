@@ -1,12 +1,22 @@
 //! Client-side prediction for local player
+//!
+//! Uses shared physics from plix-common for deterministic simulation
+//! that matches the server exactly.
 
 use plix_common::math::{Rotation, Vec3};
+use plix_common::physics::MovementConfig;
 use plix_common::protocol::PlayerInput;
 
-/// Movement constants (should match server)
-const MOVE_SPEED: f32 = 5.0;
-const JUMP_VELOCITY: f32 = 8.0;
-const GRAVITY: f32 = 20.0;
+// Use shared physics constants from plix-common to ensure client-server determinism
+fn config() -> MovementConfig {
+    MovementConfig::default()
+}
+
+/// Linear interpolation helper
+#[inline]
+fn lerp(a: f32, b: f32, t: f32) -> f32 {
+    a + (b - a) * t
+}
 
 /// Predicted player state
 #[derive(Debug, Clone)]
@@ -39,7 +49,9 @@ impl PredictionSystem {
     }
 
     /// Predict state from input (simplified, no collision)
+    /// Uses shared physics constants from plix-common for determinism
     pub fn predict(&self, state: &PredictedState, input: &PlayerInput, dt: f32) -> PredictedState {
+        let cfg = config();
         let mut new_state = state.clone();
 
         // Update rotation
@@ -55,22 +67,28 @@ impl PredictionSystem {
 
         let move_dir = forward_flat * input.move_forward + right_flat * input.move_right;
 
-        // Apply movement
-        let target_vel = move_dir * MOVE_SPEED;
+        // Apply movement using shared config
+        let target_vel = move_dir * cfg.max_speed;
 
         if state.is_grounded {
-            new_state.velocity.x = target_vel.x;
-            new_state.velocity.z = target_vel.z;
+            // Ground friction
+            let friction = cfg.ground_friction * dt;
+            new_state.velocity.x = lerp(new_state.velocity.x, target_vel.x, friction.min(1.0));
+            new_state.velocity.z = lerp(new_state.velocity.z, target_vel.z, friction.min(1.0));
 
             if input.jump {
-                new_state.velocity.y = JUMP_VELOCITY;
+                new_state.velocity.y = cfg.jump_impulse;
                 new_state.is_grounded = false;
             }
+        } else {
+            // Air control (reduced)
+            new_state.velocity.x += (target_vel.x - new_state.velocity.x) * cfg.air_control * dt;
+            new_state.velocity.z += (target_vel.z - new_state.velocity.z) * cfg.air_control * dt;
         }
 
         // Apply gravity
         if !new_state.is_grounded {
-            new_state.velocity.y -= GRAVITY * dt;
+            new_state.velocity.y -= cfg.gravity * dt;
         }
 
         // Update position

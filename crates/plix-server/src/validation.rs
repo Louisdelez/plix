@@ -7,10 +7,15 @@ use plix_common::protocol::PlayerInput;
 pub const MAX_MOVE_SPEED: f32 = 10.0;
 
 /// Attack cooldown in ticks (60 Hz = 30 ticks = 500ms)
+#[deprecated(note = "Use CombatConfig.attack_cooldown_ticks instead")]
 pub const ATTACK_COOLDOWN_TICKS: u32 = 30;
 
 /// Attack range in blocks
-pub const ATTACK_RANGE: f32 = 2.0;
+#[deprecated(note = "Use CombatConfig.attack_range instead")]
+pub const ATTACK_RANGE: f32 = 1.8; // Updated from 2.0 to 1.8
+
+/// Latency tolerance for range check
+pub const ATTACK_RANGE_EPSILON: f32 = 0.15;
 
 /// Maximum position change per tick
 pub const MAX_POS_DELTA: f32 = MAX_MOVE_SPEED / 60.0;
@@ -145,6 +150,7 @@ mod tests {
             attack: false,
             yaw: 0.0,
             pitch: 0.0,
+            rtt_nonce: 0,
         };
 
         let result = validator.validate(&mut input);

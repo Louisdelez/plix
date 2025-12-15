@@ -98,6 +98,7 @@ impl BotClient {
                 .rng
                 .gen_range(-std::f32::consts::PI..std::f32::consts::PI),
             pitch: 0.0,
+            rtt_nonce: 0, // Bots don't need RTT measurement
         };
 
         self.input_seq = self.input_seq.next();

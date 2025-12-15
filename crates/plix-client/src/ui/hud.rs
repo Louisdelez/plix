@@ -129,12 +129,12 @@ impl Hud {
         self.data.deaths = deaths;
 
         self.data.match_phase = format!("{:?}", match_state.phase);
-        self.data.round_time = match_state.round_time_limit;
+        self.data.round_time = match_state.time_remaining;
 
         self.data.scores = match_state
-            .scores
+            .player_scores
             .iter()
-            .map(|s| (format!("Team {}", s.team.0), s.score))
+            .map(|s| (format!("Player {:?}", s.player_id), s.kills as u32))
             .collect();
     }
 

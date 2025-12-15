@@ -17,6 +17,7 @@ pub enum Action {
     PlaceBlock,
     RemoveBlock,
     Pause,
+    ToggleDebugOverlay,
 }
 
 impl Action {
@@ -32,6 +33,7 @@ impl Action {
             Action::PlaceBlock,
             Action::RemoveBlock,
             Action::Pause,
+            Action::ToggleDebugOverlay,
         ]
     }
 
@@ -47,6 +49,7 @@ impl Action {
             Action::PlaceBlock => "Place Block",
             Action::RemoveBlock => "Remove Block",
             Action::Pause => "Pause",
+            Action::ToggleDebugOverlay => "Debug Overlay",
         }
     }
 }
@@ -112,6 +115,20 @@ pub enum Key {
     Left,
     Right,
 
+    // Function keys
+    F1,
+    F2,
+    F3,
+    F4,
+    F5,
+    F6,
+    F7,
+    F8,
+    F9,
+    F10,
+    F11,
+    F12,
+
     // Mouse buttons
     LeftClick,
     RightClick,
@@ -171,6 +188,18 @@ impl Key {
             KeyCode::ArrowDown => Some(Key::Down),
             KeyCode::ArrowLeft => Some(Key::Left),
             KeyCode::ArrowRight => Some(Key::Right),
+            KeyCode::F1 => Some(Key::F1),
+            KeyCode::F2 => Some(Key::F2),
+            KeyCode::F3 => Some(Key::F3),
+            KeyCode::F4 => Some(Key::F4),
+            KeyCode::F5 => Some(Key::F5),
+            KeyCode::F6 => Some(Key::F6),
+            KeyCode::F7 => Some(Key::F7),
+            KeyCode::F8 => Some(Key::F8),
+            KeyCode::F9 => Some(Key::F9),
+            KeyCode::F10 => Some(Key::F10),
+            KeyCode::F11 => Some(Key::F11),
+            KeyCode::F12 => Some(Key::F12),
             _ => None,
         }
     }
@@ -237,6 +266,18 @@ impl Key {
             Key::Down => "Down",
             Key::Left => "Left Arrow",
             Key::Right => "Right Arrow",
+            Key::F1 => "F1",
+            Key::F2 => "F2",
+            Key::F3 => "F3",
+            Key::F4 => "F4",
+            Key::F5 => "F5",
+            Key::F6 => "F6",
+            Key::F7 => "F7",
+            Key::F8 => "F8",
+            Key::F9 => "F9",
+            Key::F10 => "F10",
+            Key::F11 => "F11",
+            Key::F12 => "F12",
             Key::LeftClick => "LMB",
             Key::RightClick => "RMB",
             Key::MiddleClick => "MMB",
@@ -263,6 +304,7 @@ impl Default for Keybinds {
         bindings.insert(Action::PlaceBlock, Key::RightClick);
         bindings.insert(Action::RemoveBlock, Key::LeftClick);
         bindings.insert(Action::Pause, Key::Escape);
+        bindings.insert(Action::ToggleDebugOverlay, Key::F3);
         Self { bindings }
     }
 }
