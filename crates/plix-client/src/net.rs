@@ -84,6 +84,10 @@ impl ClientNet {
                 }
                 // TODO: Show kick reason
             }
+            ServerMessage::Warning { message, strikes } => {
+                // TODO: Display anti-cheat warning to player
+                // For now, just log it (client-side logging not yet implemented)
+            }
             ServerMessage::Snapshot(snapshot) => {
                 // TODO: Process snapshot
             }

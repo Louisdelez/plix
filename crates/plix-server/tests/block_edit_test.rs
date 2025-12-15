@@ -39,7 +39,7 @@ fn create_test_player(id: u16, position: Vec3) -> ServerPlayer {
     let player_id = PlayerId(id);
     let addr: SocketAddr = format!("127.0.0.1:{}", 10000 + id).parse().unwrap();
     let mut player = ServerPlayer::new(player_id, format!("Player{}", id), TeamId::TEAM_0, addr);
-    player.spawn(position, 0.0);
+    player.spawn(position, 0.0, Tick(0), None);
     player
 }
 
@@ -441,7 +441,7 @@ fn test_validate_place_accepts_valid_request() {
 // T048: Unit test: validate rejects InvalidPhase (not Playing)
 // =============================================================================
 #[test]
-fn test_validate_rejects_invalid_phase_waiting() {
+fn test_validate_rejects_invalid_phase_lobby() {
     let arena = create_test_arena(16, 16, 16);
     let player = create_test_player(1, Vec3::new(8.0, 1.0, 8.0));
     let current_tick = Tick(100);
@@ -457,7 +457,7 @@ fn test_validate_rejects_invalid_phase_waiting() {
         &player,
         &arena,
         current_tick,
-        MatchPhase::WaitingForPlayers,
+        MatchPhase::Lobby,
     );
 
     assert_eq!(result, Err(BlockEditRejectReason::InvalidPhase));
@@ -487,7 +487,7 @@ fn test_validate_rejects_invalid_phase_countdown() {
 }
 
 #[test]
-fn test_validate_rejects_invalid_phase_round_end() {
+fn test_validate_rejects_invalid_phase_endscreen() {
     let arena = create_test_arena(16, 16, 16);
     let player = create_test_player(1, Vec3::new(8.0, 1.0, 8.0));
     let current_tick = Tick(100);
@@ -503,14 +503,14 @@ fn test_validate_rejects_invalid_phase_round_end() {
         &player,
         &arena,
         current_tick,
-        MatchPhase::RoundEnd,
+        MatchPhase::EndScreen,
     );
 
     assert_eq!(result, Err(BlockEditRejectReason::InvalidPhase));
 }
 
 #[test]
-fn test_validate_rejects_invalid_phase_match_end() {
+fn test_validate_rejects_invalid_phase_resetting() {
     let arena = create_test_arena(16, 16, 16);
     let player = create_test_player(1, Vec3::new(8.0, 1.0, 8.0));
     let current_tick = Tick(100);
@@ -526,7 +526,7 @@ fn test_validate_rejects_invalid_phase_match_end() {
         &player,
         &arena,
         current_tick,
-        MatchPhase::MatchEnd,
+        MatchPhase::Resetting,
     );
 
     assert_eq!(result, Err(BlockEditRejectReason::InvalidPhase));

@@ -11,6 +11,10 @@ use crate::prediction::{PredictedState, PredictionSystem};
 const SMOOTH_THRESHOLD: f32 = 1.0; // blocks
 const SNAP_THRESHOLD: f32 = 5.0; // blocks
 
+/// Maximum correction delta per frame (0.5 blocks) - T059
+/// Prevents jarring visual corrections while still resolving errors
+const MAX_CORRECTION_PER_FRAME: f32 = 0.5;
+
 /// Reconciliation system
 #[derive(Debug)]
 pub struct ReconciliationSystem {
@@ -84,17 +88,26 @@ impl ReconciliationSystem {
         }
     }
 
-    /// Apply smoothed correction
+    /// Apply smoothed correction with delta clamping (T058 + T059)
+    /// Blends over ~100ms with max 0.5 blocks/frame to prevent jarring corrections
     pub fn apply_correction(&mut self, state: &mut PredictedState, dt: f32) {
         if self.correction_blend > 0.0 {
             let blend_rate = 10.0 * dt; // Smooth over ~100ms
             let apply_amount = self.correction * blend_rate.min(self.correction_blend);
 
-            state.position += apply_amount;
-            self.correction -= apply_amount;
+            // T059: Clamp correction delta to max 0.5 blocks per frame
+            let apply_length = apply_amount.length();
+            let clamped_apply = if apply_length > MAX_CORRECTION_PER_FRAME {
+                apply_amount * (MAX_CORRECTION_PER_FRAME / apply_length)
+            } else {
+                apply_amount
+            };
+
+            state.position += clamped_apply;
+            self.correction -= clamped_apply;
             self.correction_blend -= blend_rate;
 
-            if self.correction_blend <= 0.0 {
+            if self.correction_blend <= 0.0 || self.correction.length() < 0.001 {
                 self.correction = Vec3::ZERO;
                 self.correction_blend = 0.0;
             }

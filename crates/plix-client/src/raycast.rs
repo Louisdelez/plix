@@ -193,7 +193,8 @@ mod tests {
         // Fill floor (y=0) with stone
         for z in 0..16 {
             for x in 0..16 {
-                let index = z * 16 * 16 + 0 * 16 + x;
+                let y = 0;
+                let index = z * 16 * 16 + y * 16 + x;
                 blocks[index] = BlockType::STONE;
             }
         }

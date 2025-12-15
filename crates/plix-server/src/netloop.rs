@@ -47,6 +47,10 @@ impl ServerNetLoop {
                 // Block edits are handled in main server tick loop
                 // This handler exists for exhaustive matching
             }
+            ClientMessage::ReadyToggle => {
+                // Ready toggle is handled in main server
+                // This handler exists for exhaustive matching
+            }
         }
     }
 

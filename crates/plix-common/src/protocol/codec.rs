@@ -38,7 +38,10 @@ pub fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, ProtocolError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::{ClientMessage, ServerMessage, PROTOCOL_VERSION};
+    use crate::protocol::{
+        ClientMessage, GameEvent, MatchEndReason, MatchPhase, PlayerScore, ServerMessage,
+        PROTOCOL_VERSION,
+    };
     use crate::time::Tick;
     use crate::types::PlayerId;
 
@@ -65,6 +68,16 @@ mod tests {
     }
 
     #[test]
+    fn test_ready_toggle_roundtrip() {
+        let msg = ClientMessage::ReadyToggle;
+
+        let bytes = encode(&msg).unwrap();
+        let decoded: ClientMessage = decode(&bytes).unwrap();
+
+        assert!(matches!(decoded, ClientMessage::ReadyToggle));
+    }
+
+    #[test]
     fn test_server_message_roundtrip() {
         let msg = ServerMessage::Connected {
             player_id: PlayerId(42),
@@ -87,6 +100,126 @@ mod tests {
                 assert_eq!(tick, Tick(1000));
                 assert_eq!(tick_rate, 60);
                 assert_eq!(arena_data, vec![1, 2, 3, 4]);
+            }
+            _ => panic!("Wrong message type"),
+        }
+    }
+
+    #[test]
+    fn test_match_phase_changed_roundtrip() {
+        let event = GameEvent::MatchPhaseChanged {
+            from: MatchPhase::Lobby,
+            to: MatchPhase::Countdown,
+        };
+        let msg = ServerMessage::Event(event);
+
+        let bytes = encode(&msg).unwrap();
+        let decoded: ServerMessage = decode(&bytes).unwrap();
+
+        match decoded {
+            ServerMessage::Event(GameEvent::MatchPhaseChanged { from, to }) => {
+                assert_eq!(from, MatchPhase::Lobby);
+                assert_eq!(to, MatchPhase::Countdown);
+            }
+            _ => panic!("Wrong message type"),
+        }
+    }
+
+    #[test]
+    fn test_countdown_tick_roundtrip() {
+        let event = GameEvent::CountdownTick { remaining: 3 };
+        let msg = ServerMessage::Event(event);
+
+        let bytes = encode(&msg).unwrap();
+        let decoded: ServerMessage = decode(&bytes).unwrap();
+
+        match decoded {
+            ServerMessage::Event(GameEvent::CountdownTick { remaining }) => {
+                assert_eq!(remaining, 3);
+            }
+            _ => panic!("Wrong message type"),
+        }
+    }
+
+    #[test]
+    fn test_score_update_roundtrip() {
+        let event = GameEvent::ScoreUpdate {
+            player_id: PlayerId(5),
+            kills: 10,
+            deaths: 3,
+        };
+        let msg = ServerMessage::Event(event);
+
+        let bytes = encode(&msg).unwrap();
+        let decoded: ServerMessage = decode(&bytes).unwrap();
+
+        match decoded {
+            ServerMessage::Event(GameEvent::ScoreUpdate {
+                player_id,
+                kills,
+                deaths,
+            }) => {
+                assert_eq!(player_id, PlayerId(5));
+                assert_eq!(kills, 10);
+                assert_eq!(deaths, 3);
+            }
+            _ => panic!("Wrong message type"),
+        }
+    }
+
+    #[test]
+    fn test_match_end_roundtrip() {
+        let event = GameEvent::MatchEnd {
+            winner: Some(PlayerId(7)),
+            scores: vec![
+                PlayerScore {
+                    player_id: PlayerId(7),
+                    name: "Winner".to_string(),
+                    kills: 5,
+                    deaths: 2,
+                },
+                PlayerScore {
+                    player_id: PlayerId(8),
+                    name: "Loser".to_string(),
+                    kills: 3,
+                    deaths: 4,
+                },
+            ],
+            reason: MatchEndReason::ScoreLimit,
+        };
+        let msg = ServerMessage::Event(event);
+
+        let bytes = encode(&msg).unwrap();
+        let decoded: ServerMessage = decode(&bytes).unwrap();
+
+        match decoded {
+            ServerMessage::Event(GameEvent::MatchEnd {
+                winner,
+                scores,
+                reason,
+            }) => {
+                assert_eq!(winner, Some(PlayerId(7)));
+                assert_eq!(scores.len(), 2);
+                assert_eq!(scores[0].kills, 5);
+                assert_eq!(reason, MatchEndReason::ScoreLimit);
+            }
+            _ => panic!("Wrong message type"),
+        }
+    }
+
+    #[test]
+    fn test_arena_changed_roundtrip() {
+        let event = GameEvent::ArenaChanged {
+            name: "arena_02".to_string(),
+        };
+        let msg = ServerMessage::Event(event);
+
+        let bytes = encode(&msg).unwrap();
+        let decoded: ServerMessage = decode(&bytes).unwrap();
+
+        match decoded {
+            ServerMessage::Event(GameEvent::ArenaChanged { name }) => {
+                assert_eq!(name, "arena_02");
             }
             _ => panic!("Wrong message type"),
         }

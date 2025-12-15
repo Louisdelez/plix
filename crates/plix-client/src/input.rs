@@ -129,6 +129,7 @@ impl InputManager {
             attack: self.current.attack,
             yaw: self.rotation.yaw,
             pitch: self.rotation.pitch,
+            rtt_nonce: 0, // TODO: Set from client net module for RTT measurement
         };
 
         self.next_seq = self.next_seq.next();

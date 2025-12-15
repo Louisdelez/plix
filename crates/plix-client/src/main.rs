@@ -2,11 +2,12 @@
 //!
 //! Usage: plix-client [OPTIONS]
 
+use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::net::{SocketAddr, UdpSocket};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use clap::Parser;
 use tracing::{debug, error, info, warn};
@@ -26,6 +27,7 @@ use plix_client::interpolation::InterpolationManager;
 use plix_client::raycast::{raycast_blocks, MAX_RAYCAST_DISTANCE};
 use plix_client::render::{Camera, PlayerInstance, RenderEngine, UIQuad};
 use plix_client::ui::hud::{CombatEvent, Hud};
+use plix_client::ui::net_debug::{NetDebugData, NetDebugOverlay};
 use plix_client::ui::state::UiState;
 use plix_client::ui::{
     Crosshair, KeybindsMenu, KeybindsMenuItem, PauseMenu, PauseMenuItem, SettingsMenu,
@@ -119,6 +121,12 @@ struct GameState {
     keybinds_menu: KeybindsMenu,
     // Flag for quit request (T051)
     quit_requested: bool,
+    // T045-T047: RTT nonce tracking for accurate RTT measurement
+    rtt_nonces: HashMap<u64, Instant>,
+    next_rtt_nonce: u64,
+    rtt_samples: Vec<Duration>,
+    // T040-T050: Network debug overlay
+    net_debug_overlay: NetDebugOverlay,
 }
 
 impl GameState {
@@ -239,6 +247,12 @@ impl GameState {
             // T082: Initialize keybinds menu
             keybinds_menu: KeybindsMenu::new(),
             quit_requested: false,
+            // T045-T047: RTT nonce tracking
+            rtt_nonces: HashMap::new(),
+            next_rtt_nonce: 1, // Start at 1, 0 means no nonce
+            rtt_samples: Vec::with_capacity(32),
+            // T040-T050: Network debug overlay
+            net_debug_overlay: NetDebugOverlay::new(),
         }
     }
 
@@ -405,6 +419,21 @@ impl GameState {
             self.frame_count = 0;
             self.last_fps_update = now;
 
+            // T047, T050: Update debug overlay data
+            self.net_debug_overlay.update(NetDebugData {
+                rtt: Duration::from_millis(self.rtt_ms as u64),
+                jitter: self.compute_jitter(),
+                packet_loss: 0.0, // Client doesn't track packet loss currently
+                pending_inputs: self.rtt_nonces.len(),
+                bytes_sent_per_sec: 0, // TODO: Track bandwidth
+                bytes_recv_per_sec: 0,
+                server_tick: self.server_tick.0,
+                client_tick: self.server_tick.0, // Client tracks server tick
+                tick_offset: 0,
+                fps: self.fps,
+                player_id: self.player_id.map(|id| id.0).unwrap_or(0),
+            });
+
             // Update window title with HUD info (format from spec)
             // Format: "PLIX | FPS: {fps:.0} | Ping: {rtt}ms | ID: {id} | {phase}"
             let ping_str = if self.connection_state == ConnectionState::Connected {
@@ -444,8 +473,21 @@ impl GameState {
                 _ => String::new(),
             };
 
+            // T050: Show extended debug info in title when overlay is visible
+            let debug_str = if self.net_debug_overlay.is_visible() {
+                let jitter = self.compute_jitter();
+                format!(
+                    " | Jitter: {:.0}ms | Pending: {} | Tick: {}",
+                    jitter.as_secs_f64() * 1000.0,
+                    self.rtt_nonces.len(),
+                    self.server_tick.0
+                )
+            } else {
+                String::new()
+            };
+
             let title = format!(
-                "PLIX | FPS: {:.0} | Ping: {} | {} | ID: {} | {}{}{}{}",
+                "PLIX | FPS: {:.0} | Ping: {} | {} | ID: {} | {}{}{}{}{}",
                 self.fps,
                 ping_str,
                 health_str,
@@ -453,7 +495,8 @@ impl GameState {
                 status,
                 hit_indicator,
                 dmg_indicator,
-                ui_indicator
+                ui_indicator,
+                debug_str
             );
             self.window.set_title(&title);
         }
@@ -537,15 +580,51 @@ impl GameState {
         Ok(())
     }
 
+    /// Calculate jitter from RTT samples (standard deviation)
+    fn compute_jitter(&self) -> Duration {
+        if self.rtt_samples.len() < 2 {
+            return Duration::ZERO;
+        }
+
+        let total: Duration = self.rtt_samples.iter().sum();
+        let avg_nanos = total.as_nanos() / self.rtt_samples.len() as u128;
+
+        let variance: u128 = self
+            .rtt_samples
+            .iter()
+            .map(|d| {
+                let diff = d.as_nanos() as i128 - avg_nanos as i128;
+                (diff * diff) as u128
+            })
+            .sum::<u128>()
+            / self.rtt_samples.len() as u128;
+
+        let std_dev = (variance as f64).sqrt() as u64;
+        Duration::from_nanos(std_dev)
+    }
+
     fn handle_snapshot(&mut self, snapshot: WorldSnapshot) {
         // Update server tick
         self.server_tick = snapshot.tick;
 
-        // Calculate RTT from last_input_seq (rough estimate)
-        if let Some(last_time) = self.last_snapshot_time {
-            let elapsed = last_time.elapsed().as_millis() as u32;
-            // Smooth RTT
-            self.rtt_ms = (self.rtt_ms * 7 + elapsed) / 8;
+        // T047: Calculate RTT from echoed nonce
+        if snapshot.rtt_nonce_echo != 0 {
+            if let Some(sent_time) = self.rtt_nonces.remove(&snapshot.rtt_nonce_echo) {
+                let rtt = sent_time.elapsed();
+                self.rtt_samples.push(rtt);
+
+                // Keep only last 16 samples for smoothing
+                if self.rtt_samples.len() > 16 {
+                    self.rtt_samples.remove(0);
+                }
+
+                // Update smoothed RTT (average of samples)
+                if !self.rtt_samples.is_empty() {
+                    let total: Duration = self.rtt_samples.iter().sum();
+                    let avg = total / self.rtt_samples.len() as u32;
+                    self.rtt_ms = avg.as_millis() as u32;
+                }
+            }
         }
         self.last_snapshot_time = Some(Instant::now());
 
@@ -729,7 +808,31 @@ impl GameState {
             return;
         };
 
-        let input = self.input.generate_input(self.server_tick);
+        let mut input = self.input.generate_input(self.server_tick);
+
+        // T045: Generate RTT nonce and store timestamp
+        let nonce = self.next_rtt_nonce;
+        self.next_rtt_nonce = self.next_rtt_nonce.wrapping_add(1);
+        if self.next_rtt_nonce == 0 {
+            self.next_rtt_nonce = 1; // Skip 0
+        }
+        input.rtt_nonce = nonce;
+
+        // T046: Store nonce with timestamp for RTT calculation
+        let now = Instant::now();
+        self.rtt_nonces.insert(nonce, now);
+
+        // Limit stored nonces to prevent memory growth (keep last 64)
+        if self.rtt_nonces.len() > 64 {
+            // Remove oldest entries - collect keys to remove first
+            let mut entries: Vec<_> = self.rtt_nonces.iter().map(|(&k, &t)| (k, t)).collect();
+            entries.sort_by_key(|(_, t)| *t);
+            let to_remove: Vec<_> = entries.iter().take(32).map(|(k, _)| *k).collect();
+            for nonce in to_remove {
+                self.rtt_nonces.remove(&nonce);
+            }
+        }
+
         let msg = ClientMessage::Input(input);
 
         match plix_common::protocol::encode(&msg) {
@@ -956,6 +1059,16 @@ impl GameState {
             KeyCode::ControlLeft | KeyCode::ControlRight => {
                 if self.ui_state.should_process_gameplay_input() {
                     self.input.set_key(Key::Ctrl, pressed);
+                }
+            }
+            // T048: F3 toggles debug overlay
+            KeyCode::F3 => {
+                if pressed {
+                    self.net_debug_overlay.toggle();
+                    info!(
+                        visible = self.net_debug_overlay.is_visible(),
+                        "Debug overlay toggled"
+                    );
                 }
             }
             _ => {}
