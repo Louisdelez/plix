@@ -1,0 +1,39 @@
+# Rust / Cargo
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+*.so
+*.dylib
+*.dll
+
+# Coverage
+*.profraw
+*.profdata
+lcov.info
+coverage/
+
+# Logs
+*.log
+logs/
+
+# Local config
+.env
+.env.local
+config.local.toml
+
+# Generated docs (rebuild with cargo doc)
+/doc/
+
+# OS files
+Thumbs.db

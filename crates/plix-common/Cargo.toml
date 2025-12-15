@@ -1,0 +1,16 @@
+[package]
+name = "plix-common"
+description = "Shared types, protocol definitions, and math utilities for Plix"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+bincode = { workspace = true }
+glam = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+rand = { workspace = true }

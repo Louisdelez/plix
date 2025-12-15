@@ -1,0 +1,12 @@
+# Plix Rust Formatting Configuration
+edition = "2021"
+max_width = 100
+tab_spaces = 4
+newline_style = "Unix"
+use_small_heuristics = "Default"
+
+# Imports
+reorder_imports = true
+
+# Functions
+fn_params_layout = "Tall"

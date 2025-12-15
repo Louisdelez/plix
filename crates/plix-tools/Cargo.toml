@@ -1,0 +1,22 @@
+[package]
+name = "plix-tools"
+description = "Development and testing tools for Plix"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "plix-tools"
+path = "src/main.rs"
+
+[dependencies]
+plix-common = { workspace = true }
+plix-net = { workspace = true }
+plix-arena = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+clap = { workspace = true }
+rand = { workspace = true }
+thiserror = { workspace = true }
