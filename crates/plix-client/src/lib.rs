@@ -9,6 +9,8 @@
 //! - HUD overlay
 //! - Configuration persistence
 
+pub mod chunk_manager;
+pub mod chunk_mesher;
 pub mod commands;
 pub mod config;
 pub mod input;

@@ -1,15 +1,19 @@
 //! wgpu rendering engine
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use wgpu::util::DeviceExt;
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 
+use plix_common::chunk::ChunkCoord;
 use plix_common::math::Vec3;
 use plix_common::types::BlockType;
+use plix_common::ChunkedWorld;
 
 use super::Camera;
+use crate::chunk_mesher::{ChunkMesh, ChunkMesher};
 
 /// Vertex for 3D rendering
 #[repr(C)]
@@ -134,6 +138,8 @@ pub struct RenderEngine {
     player_instances: Vec<PlayerInstance>,
     // T032: UI render pipeline for 2D overlays
     ui_pipeline: wgpu::RenderPipeline,
+    // T035 [US1]: Per-chunk mesh storage for chunked rendering
+    chunk_meshes: HashMap<ChunkCoord, ChunkMesh>,
 }
 
 /// Player instance data for rendering
@@ -364,6 +370,7 @@ impl RenderEngine {
             fallback_mesh,
             player_instances: Vec::new(),
             ui_pipeline,
+            chunk_meshes: HashMap::new(),
         }
     }
 
@@ -715,9 +722,54 @@ impl RenderEngine {
         self.size
     }
 
-    /// Check if arena is loaded
+    /// Check if arena is loaded (either monolithic or chunked)
     pub fn has_arena(&self) -> bool {
-        self.arena_mesh.is_some()
+        self.arena_mesh.is_some() || !self.chunk_meshes.is_empty()
+    }
+
+    /// T035 [US1]: Load a chunked world, building meshes for all chunks.
+    ///
+    /// This replaces the monolithic arena mesh with per-chunk meshes.
+    pub fn load_chunked_world(&mut self, world: &ChunkedWorld) {
+        // Clear existing meshes
+        self.arena_mesh = None;
+        self.chunk_meshes.clear();
+
+        // Build mesh for each chunk
+        for (coord, _chunk) in world.iter_chunks() {
+            let mesh = ChunkMesher::create_mesh(&self.device, *coord, world);
+            if !mesh.is_empty {
+                self.chunk_meshes.insert(*coord, mesh);
+            }
+        }
+    }
+
+    /// T035 [US1]: Rebuild mesh for specific chunks.
+    ///
+    /// Called when blocks are edited to update only affected chunks.
+    pub fn rebuild_chunk_meshes(&mut self, coords: &[ChunkCoord], world: &ChunkedWorld) {
+        for coord in coords {
+            // Remove old mesh
+            self.chunk_meshes.remove(coord);
+
+            // Only build if chunk exists in world
+            if world.has_chunk(*coord) {
+                let mesh = ChunkMesher::create_mesh(&self.device, *coord, world);
+                if !mesh.is_empty {
+                    self.chunk_meshes.insert(*coord, mesh);
+                }
+            }
+        }
+    }
+
+    /// T035 [US1]: Get number of loaded chunk meshes.
+    pub fn chunk_mesh_count(&self) -> usize {
+        self.chunk_meshes.len()
+    }
+
+    /// Get reference to device (for external mesh creation).
+    pub fn device(&self) -> &wgpu::Device {
+        &self.device
     }
 
     /// Update camera uniform
@@ -868,13 +920,27 @@ impl RenderEngine {
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
 
-            // Render arena or fallback
-            if let Some(mesh) = &self.arena_mesh {
+            // T035 [US1]: Render chunk meshes if available, otherwise arena or fallback
+            if !self.chunk_meshes.is_empty() {
+                // Render all chunk meshes
+                for mesh in self.chunk_meshes.values() {
+                    if mesh.num_indices > 0 {
+                        render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+                        render_pass.set_index_buffer(
+                            mesh.index_buffer.slice(..),
+                            wgpu::IndexFormat::Uint32,
+                        );
+                        render_pass.draw_indexed(0..mesh.num_indices, 0, 0..1);
+                    }
+                }
+            } else if let Some(mesh) = &self.arena_mesh {
+                // Legacy monolithic arena mesh
                 render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 render_pass
                     .set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
                 render_pass.draw_indexed(0..mesh.num_indices, 0, 0..1);
             } else {
+                // Fallback scene
                 render_pass.set_vertex_buffer(0, self.fallback_mesh.vertex_buffer.slice(..));
                 render_pass.set_index_buffer(
                     self.fallback_mesh.index_buffer.slice(..),
