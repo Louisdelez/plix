@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use plix_common::math::Vec3;
 use plix_common::types::{BlockPos, BlockType, TeamId};
+use plix_common::ChunkedWorld;
 
 /// Complete arena definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -190,5 +191,14 @@ impl LoadedArena {
         if index < self.blocks.len() {
             self.blocks[index] = block_type;
         }
+    }
+
+    /// T026 [US1]: Convert this arena to a ChunkedWorld for chunk-based rendering.
+    ///
+    /// This transfers all blocks from the flat arena storage into the chunked
+    /// world container, which enables per-chunk meshing and streaming.
+    pub fn to_chunked_world(&self) -> ChunkedWorld {
+        let [size_x, size_y, size_z] = self.size();
+        ChunkedWorld::from_flat_blocks(&self.blocks, size_x, size_y, size_z)
     }
 }

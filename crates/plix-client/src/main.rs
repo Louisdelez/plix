@@ -156,9 +156,6 @@ impl GameState {
                             "Arena loaded successfully"
                         );
 
-                        // Load arena into render engine
-                        engine.load_arena(arena.size(), &arena.blocks);
-
                         // Get first spawn point for camera position
                         if let Some(spawn) = arena.definition.spawn_points.first() {
                             spawn_position = Vec3::new(
@@ -172,9 +169,18 @@ impl GameState {
                             );
                         }
 
-                        // Create ClientWorld for block editing (T033)
-                        client_world = Some(ClientWorld::new(arena));
+                        // T033/T034 [US1]: Create ClientWorld with chunked storage
+                        let world = ClientWorld::new(arena);
 
+                        // T035 [US1]: Load chunked world into render engine
+                        engine.load_chunked_world(world.chunked_world());
+                        info!(
+                            chunk_count = world.chunk_count(),
+                            mesh_count = engine.chunk_mesh_count(),
+                            "Chunked world loaded"
+                        );
+
+                        client_world = Some(world);
                         arena_loaded = true;
                         break;
                     }
@@ -728,13 +734,20 @@ impl GameState {
     }
 
     /// Rebuild world mesh from current ClientWorld state (T037)
+    ///
+    /// T035 [US1]: Updated to rebuild only dirty chunks instead of entire mesh.
     fn rebuild_world_mesh(&mut self) {
         if let Some(world) = &mut self.world {
             if world.is_dirty() {
-                let arena = world.arena();
-                self.engine.load_arena(arena.size(), &arena.blocks);
+                // Collect dirty chunks
+                let dirty: Vec<_> = world.dirty_chunks().iter().copied().collect();
+
+                // Rebuild only affected chunks
+                self.engine
+                    .rebuild_chunk_meshes(&dirty, world.chunked_world());
+
                 world.clear_dirty();
-                debug!("World mesh rebuilt");
+                debug!(chunks_rebuilt = dirty.len(), "Chunk meshes rebuilt");
             }
         }
     }

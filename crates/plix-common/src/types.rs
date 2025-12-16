@@ -3,6 +3,9 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+/// Type alias for chunk coordinates (same as ChunkPos, for clarity in chunk system code)
+pub type ChunkCoord = ChunkPos;
+
 /// Unique player identifier (assigned by server)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PlayerId(pub u16);
@@ -100,6 +103,16 @@ impl BlockType {
     pub const BRICK: Self = Self(2);
     /// Metal block
     pub const METAL: Self = Self(3);
+    /// Grass block (plains surface)
+    pub const GRASS: Self = Self(4);
+    /// Dirt block (plains subsurface)
+    pub const DIRT: Self = Self(5);
+    /// Sand block (desert surface)
+    pub const SAND: Self = Self(6);
+    /// Sandstone block (desert subsurface)
+    pub const SANDSTONE: Self = Self(7);
+    /// Bedrock block (world floor at y=0)
+    pub const BEDROCK: Self = Self(8);
 
     /// Check if this block is solid (not air)
     pub fn is_solid(&self) -> bool {

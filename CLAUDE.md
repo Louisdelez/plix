@@ -12,6 +12,11 @@ Auto-generated from all feature plans. Last updated: 2025-12-14
 - N/A (in-memory state only) (008-movement-polish)
 - Rust 1.75+ (stable channel only per constitution) + tokio (async), bincode (serialization), glam (math), wgpu (client rendering), tracing (logging) (010-logging-metrics)
 - N/A (in-memory metrics only) (010-logging-metrics)
+- Rust 1.75+ (stable channel only per constitution) + wgpu 23.0 (rendering), glam (math), bincode (serialization), tokio (async) (011-chunked-world)
+- In-memory chunked HashMap (client-side); arena still loads from TOML server-side (011-chunked-world)
+- Rust 1.75+ (stable channel only per constitution) + plix-common (chunk types), plix-client (ChunkManager, meshing), tracing (metrics) (012-world-edit-optimization)
+- Rust 1.75+ (stable channel only per constitution) + `noise-rs` (noise generation), `glam` (math), existing plix-common types (013-procedural-generation)
+- N/A (in-memory chunk generation, no persistence in this feature) (013-procedural-generation)
 
 - Rust 1.75+ (stable channel only per constitution) (002-voxel-game-platform)
 
@@ -31,9 +36,9 @@ cargo test [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECH
 Rust 1.75+ (stable channel only per constitution): Follow standard conventions
 
 ## Recent Changes
-- 010-logging-metrics: Added Rust 1.75+ (stable channel only per constitution) + tokio (async), bincode (serialization), glam (math), wgpu (client rendering), tracing (logging)
-- 008-movement-polish: Added Rust 1.75+ (stable channel only per constitution) + glam (math), bincode (serialization), tokio (async), wgpu (client rendering)
-- 007-anti-cheat-hardening: Added Rust 1.75+ (stable channel only per constitution) + tokio (async), bincode (serialization), glam (math)
+- 013-procedural-generation: Added Rust 1.75+ (stable channel only per constitution) + `noise-rs` (noise generation), `glam` (math), existing plix-common types
+- 012-world-edit-optimization: Added Rust 1.75+ (stable channel only per constitution) + plix-common (chunk types), plix-client (ChunkManager, meshing), tracing (metrics)
+- 011-chunked-world: Added Rust 1.75+ (stable channel only per constitution) + wgpu 23.0 (rendering), glam (math), bincode (serialization), tokio (async)
 
 
 <!-- MANUAL ADDITIONS START -->

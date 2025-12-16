@@ -1,9 +1,19 @@
 //! Voxel/arena rendering (placeholder)
+//!
+//! T036 [US1]: This module is DEPRECATED. Chunk-based rendering is now handled
+//! by `chunk_mesher.rs` and integrated into `RenderEngine` via `load_chunked_world()`.
+//!
+//! This placeholder remains for backwards compatibility but is not used in the
+//! current chunked rendering pipeline.
 
 use plix_common::types::BlockType;
 
-/// Voxel renderer (placeholder for wgpu implementation)
+/// Voxel renderer (placeholder - DEPRECATED, see chunk_mesher.rs)
 #[derive(Debug)]
+#[deprecated(
+    since = "0.1.0",
+    note = "Use chunk_mesher.rs and RenderEngine::load_chunked_world() instead"
+)]
 pub struct VoxelRenderer {
     /// Arena size
     size: [u32; 3],
@@ -11,8 +21,9 @@ pub struct VoxelRenderer {
     dirty: bool,
 }
 
+#[allow(deprecated)]
 impl VoxelRenderer {
-    /// Create a new voxel renderer
+    /// Create a new voxel renderer (DEPRECATED)
     pub fn new() -> Self {
         Self {
             size: [0, 0, 0],
@@ -20,24 +31,22 @@ impl VoxelRenderer {
         }
     }
 
-    /// Load arena data
+    /// Load arena data (DEPRECATED)
     pub fn load_arena(&mut self, size: [u32; 3], _blocks: &[BlockType]) {
         self.size = size;
         self.dirty = true;
-        // TODO: Generate mesh from blocks
     }
 
-    /// Rebuild mesh if dirty
+    /// Rebuild mesh if dirty (DEPRECATED)
     pub fn update(&mut self) {
         if self.dirty {
-            // TODO: Implement greedy meshing
             self.dirty = false;
         }
     }
 
-    /// Render the arena
+    /// Render the arena (DEPRECATED)
     pub fn render(&self) {
-        // TODO: Implement wgpu rendering
+        // No-op
     }
 
     /// Get arena size
@@ -46,6 +55,7 @@ impl VoxelRenderer {
     }
 }
 
+#[allow(deprecated)]
 impl Default for VoxelRenderer {
     fn default() -> Self {
         Self::new()
