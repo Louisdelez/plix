@@ -1,0 +1,23 @@
+# Plix Server - Team Deathmatch (TDM) Configuration
+# Two teams compete for kills
+
+server_name = "Team Deathmatch"
+region = "unknown"
+tags = ["tdm", "teams", "competitive"]
+
+port = 7777
+max_players = 24  # 12 per team
+
+game_mode = "tdm"
+arena = "test_arena"
+tickrate = 60
+
+persistence = false
+log_level = "info"
+
+# To start with this config:
+# docker run -d -p 7777:7777/udp \
+#   -e PLIX_SERVER_NAME="Team Deathmatch" \
+#   -e PLIX_GAME_MODE=tdm \
+#   -e PLIX_MAX_PLAYERS=24 \
+#   plix-server

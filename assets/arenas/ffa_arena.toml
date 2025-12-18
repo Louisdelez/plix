@@ -1,0 +1,90 @@
+# FFA Arena - Free-for-All game mode arena
+# All spawn points are neutral (team field ignored)
+
+[metadata]
+name = "FFA Arena"
+version = "1.0.0"
+size = [64, 32, 64]
+game_mode = "ffa"
+
+# Neutral spawn points distributed across the arena
+# Team field is ignored for FFA mode
+
+[[spawn_points]]
+team = 0
+position = [10.0, 1.0, 10.0]
+rotation = 45.0
+
+[[spawn_points]]
+team = 0
+position = [32.0, 1.0, 10.0]
+rotation = 90.0
+
+[[spawn_points]]
+team = 0
+position = [54.0, 1.0, 10.0]
+rotation = 135.0
+
+[[spawn_points]]
+team = 0
+position = [10.0, 1.0, 32.0]
+rotation = 0.0
+
+[[spawn_points]]
+team = 0
+position = [32.0, 1.0, 32.0]
+rotation = 180.0
+
+[[spawn_points]]
+team = 0
+position = [54.0, 1.0, 32.0]
+rotation = 180.0
+
+[[spawn_points]]
+team = 0
+position = [10.0, 1.0, 54.0]
+rotation = 315.0
+
+[[spawn_points]]
+team = 0
+position = [32.0, 1.0, 54.0]
+rotation = 270.0
+
+[[spawn_points]]
+team = 0
+position = [54.0, 1.0, 54.0]
+rotation = 225.0
+
+[blocks]
+# Stone floor at y=0
+floor = { y = 0, block = "stone" }
+
+# Brick walls around the border, 8 blocks high
+walls = { border = true, height = 8, block = "brick" }
+
+# Center platform
+[[blocks.regions]]
+min = [28, 1, 28]
+max = [36, 2, 36]
+block = "metal"
+
+# Cover structures for FFA gameplay
+[[blocks.regions]]
+min = [16, 1, 16]
+max = [20, 4, 20]
+block = "brick"
+
+[[blocks.regions]]
+min = [44, 1, 16]
+max = [48, 4, 20]
+block = "brick"
+
+[[blocks.regions]]
+min = [16, 1, 44]
+max = [20, 4, 48]
+block = "brick"
+
+[[blocks.regions]]
+min = [44, 1, 44]
+max = [48, 4, 48]
+block = "brick"

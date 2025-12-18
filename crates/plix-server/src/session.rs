@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
 
+use plix_common::identity::SessionId;
+use plix_common::inventory::Hotbar;
 use plix_common::math::{Rotation, Vec3};
 use plix_common::metrics::RollingWindow;
 use plix_common::protocol::{BlockEditRequest, PlayerInput};
@@ -11,6 +13,9 @@ use plix_common::time::Tick;
 use plix_common::types::{InputSeq, PlayerId, TeamId};
 
 use crate::anti_cheat::AntiCheatState;
+use crate::crafting::CraftCooldown;
+use crate::economy::PlayerWallet;
+use crate::weapons::PlayerWeaponState;
 
 /// Maximum pending inputs per player
 const MAX_PENDING_INPUTS: usize = 64;
@@ -148,6 +153,8 @@ pub struct ServerPlayer {
     pub team: TeamId,
     /// Network address
     pub addr: SocketAddr,
+    /// Session ID for this connection (logging and correlation)
+    pub session_id: SessionId,
 
     // Transform
     /// World position
@@ -185,6 +192,10 @@ pub struct ServerPlayer {
     /// Deaths this round
     pub deaths: u16,
 
+    // TDM spectate
+    /// Who this player is spectating while dead (killer ID)
+    pub spectate_target: Option<PlayerId>,
+
     // Match flow
     /// Ready state for match start
     pub is_ready: bool,
@@ -198,16 +209,43 @@ pub struct ServerPlayer {
     pub last_rtt_nonce: u64,
     /// Per-session network metrics (RTT, jitter, loss)
     pub net_metrics: SessionNetMetrics,
+
+    // Inventory
+    /// Player's hotbar inventory
+    pub hotbar: Hotbar,
+
+    // Weapons
+    /// Per-player weapon state (cooldowns, recoil)
+    pub weapon_state: PlayerWeaponState,
+
+    // Crafting
+    /// Per-player crafting cooldown tracker
+    pub craft_cooldown: CraftCooldown,
+
+    // Economy
+    /// Per-player wallet for match economy
+    pub wallet: PlayerWallet,
+
+    // Identity (Feature 025)
+    /// Last tick when player renamed (for rate limiting) [T047]
+    pub last_rename_tick: Option<Tick>,
 }
 
 impl ServerPlayer {
     /// Create a new player with default state
-    pub fn new(id: PlayerId, name: String, team: TeamId, addr: SocketAddr) -> Self {
+    pub fn new(
+        id: PlayerId,
+        name: String,
+        team: TeamId,
+        addr: SocketAddr,
+        session_id: SessionId,
+    ) -> Self {
         Self {
             id,
             name,
             team,
             addr,
+            session_id,
             position: Vec3::ZERO,
             rotation: Rotation::ZERO,
             velocity: Vec3::ZERO,
@@ -222,10 +260,16 @@ impl ServerPlayer {
             pending_edits: Vec::with_capacity(MAX_PENDING_EDITS),
             kills: 0,
             deaths: 0,
+            spectate_target: None,
             is_ready: false,
             anti_cheat: AntiCheatState::default(),
             last_rtt_nonce: 0,
             net_metrics: SessionNetMetrics::new(),
+            hotbar: Hotbar::with_default_size(),
+            weapon_state: PlayerWeaponState::default(),
+            craft_cooldown: CraftCooldown::new(),
+            wallet: PlayerWallet::new(),
+            last_rename_tick: None,
         }
     }
 
@@ -270,9 +314,12 @@ impl ServerPlayer {
     }
 
     /// Reset stats for new round
+    ///
+    /// Resets kills, deaths, and wallet balance for new match.
     pub fn reset_stats(&mut self) {
         self.kills = 0;
         self.deaths = 0;
+        self.wallet.reset();
     }
 
     /// Spawn player at position with optional invulnerability
@@ -292,7 +339,8 @@ impl ServerPlayer {
         self.health = 100;
         self.is_dead = false;
         self.respawn_tick = None;
-        // Set invulnerability if specified (T038 - US4)
+        self.spectate_target = None; // Clear spectate on respawn (TDM)
+                                     // Set invulnerability if specified (T038 - US4)
         self.invulnerable_until_tick = invuln_ticks.map(|ticks| Tick(current_tick.0 + ticks));
         // Reset anti-cheat position tracking for new spawn location
         self.anti_cheat.update_position(position);
@@ -304,6 +352,18 @@ impl ServerPlayer {
         self.invulnerable_until_tick
             .map(|until| current_tick.0 < until.0)
             .unwrap_or(false)
+    }
+
+    /// Check if player can rename (rate limit: 60 seconds = 3600 ticks at 60 TPS) [T048]
+    ///
+    /// Returns true if player has never renamed or enough time has passed since last rename.
+    pub const RENAME_COOLDOWN_TICKS: u32 = 3600; // 60 seconds at 60 TPS
+
+    #[inline]
+    pub fn can_rename(&self, current_tick: Tick) -> bool {
+        self.last_rename_tick
+            .map(|last| current_tick.0 >= last.0 + Self::RENAME_COOLDOWN_TICKS)
+            .unwrap_or(true)
     }
 
     /// Kill the player
@@ -355,7 +415,13 @@ impl SessionManager {
     }
 
     /// Add a new player
-    pub fn add_player(&mut self, name: String, team: TeamId, addr: SocketAddr) -> Option<PlayerId> {
+    pub fn add_player(
+        &mut self,
+        name: String,
+        team: TeamId,
+        addr: SocketAddr,
+        session_id: SessionId,
+    ) -> Option<PlayerId> {
         if self.players.len() >= self.max_players as usize {
             return None;
         }
@@ -366,7 +432,7 @@ impl SessionManager {
             self.next_id = 1;
         }
 
-        let player = ServerPlayer::new(id, name, team, addr);
+        let player = ServerPlayer::new(id, name, team, addr, session_id);
         self.players.insert(id, player);
         self.addr_to_id.insert(addr, id);
 
@@ -469,7 +535,7 @@ mod tests {
 
         let addr = "127.0.0.1:12345".parse().unwrap();
         let id = manager
-            .add_player("TestPlayer".into(), TeamId::TEAM_0, addr)
+            .add_player("TestPlayer".into(), TeamId::TEAM_0, addr, SessionId::new(1))
             .unwrap();
 
         assert_eq!(manager.count(), 1);
@@ -489,13 +555,13 @@ mod tests {
         let addr3 = "127.0.0.1:3".parse().unwrap();
 
         assert!(manager
-            .add_player("P1".into(), TeamId::TEAM_0, addr1)
+            .add_player("P1".into(), TeamId::TEAM_0, addr1, SessionId::new(1))
             .is_some());
         assert!(manager
-            .add_player("P2".into(), TeamId::TEAM_1, addr2)
+            .add_player("P2".into(), TeamId::TEAM_1, addr2, SessionId::new(2))
             .is_some());
         assert!(manager
-            .add_player("P3".into(), TeamId::TEAM_0, addr3)
+            .add_player("P3".into(), TeamId::TEAM_0, addr3, SessionId::new(3))
             .is_none());
 
         assert!(manager.is_full());
@@ -505,7 +571,8 @@ mod tests {
     fn test_player_damage() {
         let id = PlayerId(1);
         let addr = "127.0.0.1:1".parse().unwrap();
-        let mut player = ServerPlayer::new(id, "Test".into(), TeamId::TEAM_0, addr);
+        let mut player =
+            ServerPlayer::new(id, "Test".into(), TeamId::TEAM_0, addr, SessionId::new(1));
 
         assert!(!player.take_damage(50, Tick(100)));
         assert_eq!(player.health, 50);

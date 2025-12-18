@@ -65,6 +65,8 @@ impl BotClient {
         ClientMessage::Connect {
             protocol_version: PROTOCOL_VERSION,
             name: self.name(),
+            account_id: None, // v2 placeholder
+            auth_token: None, // v2 placeholder
         }
     }
 

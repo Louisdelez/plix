@@ -50,6 +50,8 @@ mod tests {
         let msg = ClientMessage::Connect {
             protocol_version: PROTOCOL_VERSION,
             name: "TestPlayer".to_string(),
+            account_id: None,
+            auth_token: None,
         };
 
         let bytes = encode(&msg).unwrap();
@@ -59,9 +61,13 @@ mod tests {
             ClientMessage::Connect {
                 protocol_version,
                 name,
+                account_id,
+                auth_token,
             } => {
                 assert_eq!(protocol_version, PROTOCOL_VERSION);
                 assert_eq!(name, "TestPlayer");
+                assert!(account_id.is_none());
+                assert!(auth_token.is_none());
             }
             _ => panic!("Wrong message type"),
         }
@@ -79,11 +85,15 @@ mod tests {
 
     #[test]
     fn test_server_message_roundtrip() {
+        use crate::identity::SessionId;
+
         let msg = ServerMessage::Connected {
             player_id: PlayerId(42),
             tick: Tick(1000),
             tick_rate: 60,
             arena_data: vec![1, 2, 3, 4],
+            display_name: "TestPlayer".to_string(),
+            session_id: SessionId::new(123),
         };
 
         let bytes = encode(&msg).unwrap();
@@ -95,11 +105,15 @@ mod tests {
                 tick,
                 tick_rate,
                 arena_data,
+                display_name,
+                session_id,
             } => {
                 assert_eq!(player_id, PlayerId(42));
                 assert_eq!(tick, Tick(1000));
                 assert_eq!(tick_rate, 60);
                 assert_eq!(arena_data, vec![1, 2, 3, 4]);
+                assert_eq!(display_name, "TestPlayer");
+                assert_eq!(session_id.0, 123);
             }
             _ => panic!("Wrong message type"),
         }
@@ -227,12 +241,16 @@ mod tests {
 
     #[test]
     fn test_message_size_limit() {
+        use crate::identity::SessionId;
+
         let large_data = vec![0u8; MAX_PAYLOAD_SIZE + 1];
         let msg = ServerMessage::Connected {
             player_id: PlayerId(1),
             tick: Tick(0),
             tick_rate: 60,
             arena_data: large_data,
+            display_name: String::new(),
+            session_id: SessionId::NONE,
         };
 
         let result = encode(&msg);

@@ -29,6 +29,14 @@ pub struct AntiCheatState {
     block_edit_count: u32,
     /// Ready toggle count this window
     ready_toggle_count: u32,
+    /// Training reset count this window
+    training_reset_count: u32,
+    /// Slot select count this window
+    slot_select_count: u32,
+    /// Inventory use count this window
+    inventory_use_count: u32,
+    /// Shop buy count this window
+    shop_buy_count: u32,
     /// Start tick of current rate limit window
     window_start_tick: Tick,
 
@@ -57,6 +65,10 @@ impl AntiCheatState {
             attack_count: 0,
             block_edit_count: 0,
             ready_toggle_count: 0,
+            training_reset_count: 0,
+            slot_select_count: 0,
+            inventory_use_count: 0,
+            shop_buy_count: 0,
             window_start_tick: current_tick,
             last_input_seq: InputSeq::default(),
             last_valid_position: None,
@@ -101,6 +113,19 @@ impl AntiCheatState {
                 &mut self.ready_toggle_count,
                 config.max_ready_toggles_per_second,
             ),
+            ActionType::TrainingReset => (
+                &mut self.training_reset_count,
+                config.max_training_resets_per_second,
+            ),
+            ActionType::SlotSelect => (
+                &mut self.slot_select_count,
+                config.max_slot_selects_per_second,
+            ),
+            ActionType::InventoryUse => (
+                &mut self.inventory_use_count,
+                config.max_inventory_uses_per_second,
+            ),
+            ActionType::ShopBuy => (&mut self.shop_buy_count, config.max_shop_buys_per_second),
         };
 
         if *count >= limit {
@@ -119,6 +144,10 @@ impl AntiCheatState {
             self.attack_count = 0;
             self.block_edit_count = 0;
             self.ready_toggle_count = 0;
+            self.training_reset_count = 0;
+            self.slot_select_count = 0;
+            self.inventory_use_count = 0;
+            self.shop_buy_count = 0;
             self.window_start_tick = current_tick;
         }
     }

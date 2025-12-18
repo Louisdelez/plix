@@ -14,6 +14,10 @@ pub struct ReplicatedPlayer {
     pub health: u8,
     pub is_dead: bool,
     pub animation: AnimationState,
+    /// Who this player is spectating while dead (killer ID for TDM)
+    pub spectate_target: Option<PlayerId>,
+    /// Player's display name
+    pub display_name: String,
 }
 
 /// All replicated state

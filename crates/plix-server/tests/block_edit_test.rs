@@ -4,6 +4,7 @@
 use std::net::SocketAddr;
 
 use plix_arena::format::{Arena, ArenaMetadata, BlockDefinitions, LoadedArena};
+use plix_common::identity::SessionId;
 use plix_common::math::Vec3;
 use plix_common::protocol::{BlockEditKind, BlockEditRejectReason, BlockEditRequest, MatchPhase};
 use plix_common::time::Tick;
@@ -18,6 +19,7 @@ fn create_test_arena(size_x: u32, size_y: u32, size_z: u32) -> LoadedArena {
             name: "test_arena".to_string(),
             version: "1.0".to_string(),
             size: [size_x, size_y, size_z],
+            game_mode: plix_common::GameMode::Tdm,
         },
         spawn_points: vec![],
         blocks: BlockDefinitions {
@@ -25,6 +27,10 @@ fn create_test_arena(size_x: u32, size_y: u32, size_z: u32) -> LoadedArena {
             walls: None,
             regions: vec![],
         },
+        flag_zones: vec![],
+        br_lite: None,
+        training: None,
+        economy: None,
     };
 
     // Fill with stone blocks
@@ -38,7 +44,14 @@ fn create_test_arena(size_x: u32, size_y: u32, size_z: u32) -> LoadedArena {
 fn create_test_player(id: u16, position: Vec3) -> ServerPlayer {
     let player_id = PlayerId(id);
     let addr: SocketAddr = format!("127.0.0.1:{}", 10000 + id).parse().unwrap();
-    let mut player = ServerPlayer::new(player_id, format!("Player{}", id), TeamId::TEAM_0, addr);
+    let session_id = SessionId::new(id as u64);
+    let mut player = ServerPlayer::new(
+        player_id,
+        format!("Player{}", id),
+        TeamId::TEAM_0,
+        addr,
+        session_id,
+    );
     player.spawn(position, 0.0, Tick(0), None);
     player
 }

@@ -11,7 +11,8 @@ pub use connect::ConnectScreen;
 pub use crosshair::Crosshair;
 pub use hud::Hud;
 pub use menu::{
-    KeybindsMenu, KeybindsMenuItem, PauseMenu, PauseMenuItem, SettingsMenu, SettingsMenuItem,
+    KeybindsMenu, KeybindsMenuItem, PauseMenu, PauseMenuItem, ServerBrowserMenu, SettingsMenu,
+    SettingsMenuItem,
 };
 pub use net_debug::NetDebugOverlay;
 pub use state::UiState;

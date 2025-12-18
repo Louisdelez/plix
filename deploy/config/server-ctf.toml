@@ -1,0 +1,24 @@
+# Plix Server - Capture The Flag (CTF) Configuration
+# Two teams compete to capture enemy flags
+
+server_name = "Capture The Flag"
+region = "unknown"
+tags = ["ctf", "teams", "objective"]
+
+port = 7777
+max_players = 32  # 16 per team
+
+game_mode = "ctf"
+arena = "ctf_arena"
+tickrate = 60
+
+persistence = false
+log_level = "info"
+
+# To start with this config:
+# docker run -d -p 7777:7777/udp \
+#   -e PLIX_SERVER_NAME="Capture The Flag" \
+#   -e PLIX_GAME_MODE=ctf \
+#   -e PLIX_ARENA=ctf_arena \
+#   -e PLIX_MAX_PLAYERS=32 \
+#   plix-server

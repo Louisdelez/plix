@@ -3,7 +3,7 @@
 //! This module provides the main container for storing and accessing
 //! blocks across chunk boundaries.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::chunk::{boundary_neighbors, Chunk, ChunkCoord};
 use crate::types::{BlockPos, BlockType};
@@ -12,9 +12,17 @@ use crate::types::{BlockPos, BlockType};
 ///
 /// Provides block access across chunk boundaries with automatic
 /// chunk creation when setting blocks.
+///
+/// ## Dirty Tracking
+///
+/// Two types of dirty tracking are maintained:
+/// - **Mesh dirty**: Chunks needing visual mesh rebuild (cleared after render)
+/// - **Persistence dirty**: Chunks with block changes needing save to disk
 #[derive(Clone)]
 pub struct ChunkedWorld {
     chunks: HashMap<ChunkCoord, Chunk>,
+    /// Chunks that have been modified and need to be saved to disk.
+    persistence_dirty: HashSet<ChunkCoord>,
 }
 
 impl ChunkedWorld {
@@ -22,6 +30,7 @@ impl ChunkedWorld {
     pub fn new() -> Self {
         Self {
             chunks: HashMap::new(),
+            persistence_dirty: HashSet::new(),
         }
     }
 
@@ -42,15 +51,29 @@ impl ChunkedWorld {
     /// Set a block at the given world position.
     ///
     /// Creates the chunk if it doesn't exist.
-    /// Returns the list of chunk coordinates that were affected (for dirty marking).
+    /// Returns the list of chunk coordinates that were affected (for mesh dirty marking).
+    ///
+    /// Also marks the chunk as persistence dirty if the block actually changed.
     pub fn set_block(&mut self, pos: BlockPos, block: BlockType) -> Vec<ChunkCoord> {
         let chunk_coord = pos.chunk_pos();
         let (lx, ly, lz) = pos.local_pos();
 
-        // Ensure chunk exists
+        // Check if block is actually changing (before setting)
+        let old_block = self
+            .chunks
+            .get(&chunk_coord)
+            .map(|c| c.get_block(lx, ly, lz))
+            .unwrap_or(BlockType::AIR);
+
+        // Ensure chunk exists and set the block
         let chunk = self.ensure_chunk(chunk_coord);
         chunk.set_block(lx, ly, lz, block);
         chunk.mark_dirty();
+
+        // Mark for persistence if block actually changed
+        if old_block != block {
+            self.persistence_dirty.insert(chunk_coord);
+        }
 
         // Collect affected chunks (self + boundary neighbors)
         let mut affected = vec![chunk_coord];
@@ -137,6 +160,42 @@ impl ChunkedWorld {
         for chunk in self.chunks.values_mut() {
             chunk.clear_dirty();
         }
+    }
+
+    // =========================================================================
+    // PERSISTENCE DIRTY TRACKING
+    // =========================================================================
+
+    /// Mark a chunk as needing to be saved to disk.
+    ///
+    /// Call this when a chunk has been modified and needs persistence.
+    pub fn mark_persistence_dirty(&mut self, coord: ChunkCoord) {
+        self.persistence_dirty.insert(coord);
+    }
+
+    /// Clear the persistence dirty flag for a chunk (after saving).
+    pub fn clear_persistence_dirty(&mut self, coord: ChunkCoord) {
+        self.persistence_dirty.remove(&coord);
+    }
+
+    /// Check if a chunk is marked for persistence.
+    pub fn is_persistence_dirty(&self, coord: ChunkCoord) -> bool {
+        self.persistence_dirty.contains(&coord)
+    }
+
+    /// Get the number of chunks needing persistence.
+    pub fn persistence_dirty_count(&self) -> usize {
+        self.persistence_dirty.len()
+    }
+
+    /// Iterate over chunk coordinates that need to be saved.
+    pub fn persistence_dirty_chunks(&self) -> impl Iterator<Item = ChunkCoord> + '_ {
+        self.persistence_dirty.iter().copied()
+    }
+
+    /// Clear all persistence dirty flags (after full save).
+    pub fn clear_all_persistence_dirty(&mut self) {
+        self.persistence_dirty.clear();
     }
 
     /// Get block at world coordinates (convenience method).
@@ -454,5 +513,88 @@ mod tests {
             !generator_called_again,
             "Generator should not be called for existing chunk"
         );
+    }
+
+    // ==================== Persistence Dirty Tracking Tests ====================
+
+    #[test]
+    fn test_persistence_dirty_on_block_change() {
+        let mut world = ChunkedWorld::new();
+        let coord = ChunkCoord::new(0, 0, 0);
+
+        // Initially no dirty chunks
+        assert_eq!(world.persistence_dirty_count(), 0);
+
+        // Setting a block marks persistence dirty
+        world.set_block(BlockPos::new(5, 5, 5), BlockType::STONE);
+        assert!(world.is_persistence_dirty(coord));
+        assert_eq!(world.persistence_dirty_count(), 1);
+    }
+
+    #[test]
+    fn test_persistence_dirty_no_change() {
+        let mut world = ChunkedWorld::new();
+
+        // Set a block
+        world.set_block(BlockPos::new(0, 0, 0), BlockType::STONE);
+        world.clear_all_persistence_dirty();
+
+        // Setting same block again should NOT mark dirty
+        world.set_block(BlockPos::new(0, 0, 0), BlockType::STONE);
+        assert_eq!(world.persistence_dirty_count(), 0);
+    }
+
+    #[test]
+    fn test_persistence_dirty_clear_single() {
+        let mut world = ChunkedWorld::new();
+        let coord = ChunkCoord::new(0, 0, 0);
+
+        world.set_block(BlockPos::new(0, 0, 0), BlockType::STONE);
+        assert!(world.is_persistence_dirty(coord));
+
+        world.clear_persistence_dirty(coord);
+        assert!(!world.is_persistence_dirty(coord));
+        assert_eq!(world.persistence_dirty_count(), 0);
+    }
+
+    #[test]
+    fn test_persistence_dirty_clear_all() {
+        let mut world = ChunkedWorld::new();
+
+        // Modify multiple chunks
+        world.set_block(BlockPos::new(0, 0, 0), BlockType::STONE);
+        world.set_block(BlockPos::new(16, 0, 0), BlockType::BRICK);
+        world.set_block(BlockPos::new(32, 0, 0), BlockType::METAL);
+
+        assert_eq!(world.persistence_dirty_count(), 3);
+
+        world.clear_all_persistence_dirty();
+        assert_eq!(world.persistence_dirty_count(), 0);
+    }
+
+    #[test]
+    fn test_persistence_dirty_chunks_iterator() {
+        let mut world = ChunkedWorld::new();
+
+        world.set_block(BlockPos::new(0, 0, 0), BlockType::STONE);
+        world.set_block(BlockPos::new(16, 0, 0), BlockType::BRICK);
+
+        let dirty: Vec<_> = world.persistence_dirty_chunks().collect();
+        assert_eq!(dirty.len(), 2);
+        assert!(dirty.contains(&ChunkCoord::new(0, 0, 0)));
+        assert!(dirty.contains(&ChunkCoord::new(1, 0, 0)));
+    }
+
+    #[test]
+    fn test_persistence_dirty_manual_mark() {
+        let mut world = ChunkedWorld::new();
+        let coord = ChunkCoord::new(5, 5, 5);
+
+        // Manually mark a chunk dirty (even if not loaded)
+        world.mark_persistence_dirty(coord);
+        assert!(world.is_persistence_dirty(coord));
+
+        world.clear_persistence_dirty(coord);
+        assert!(!world.is_persistence_dirty(coord));
     }
 }

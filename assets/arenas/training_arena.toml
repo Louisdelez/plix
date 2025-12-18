@@ -1,0 +1,56 @@
+# Training Arena - Practice against target bots
+# Game mode: training
+
+[metadata]
+name = "Training Arena"
+version = "1.0"
+size = [64, 16, 64]
+game_mode = "training"
+
+# Player spawn point (center of arena)
+[[spawn_points]]
+team = 0
+position = [32.0, 2.0, 32.0]
+rotation = 0.0
+
+# Block definitions
+[blocks]
+[blocks.floor]
+y = 0
+block = "stone"
+
+[blocks.walls]
+border = true
+height = 4
+block = "brick"
+
+# Custom platform regions for practice
+[[blocks.regions]]
+min = [20, 1, 20]
+max = [44, 1, 44]
+block = "metal"
+
+# Training mode configuration
+[training]
+bot_count = 5
+bot_behavior = "dummy"
+bot_respawn_delay_secs = 3.0
+player_respawn_delay_secs = 1.0
+invincibility_player = false
+invincibility_bots = false
+
+# Bot spawn points (spread around the arena)
+[[training.bot_spawns]]
+position = [20.0, 2.0, 32.0]
+
+[[training.bot_spawns]]
+position = [44.0, 2.0, 32.0]
+
+[[training.bot_spawns]]
+position = [32.0, 2.0, 20.0]
+
+[[training.bot_spawns]]
+position = [32.0, 2.0, 44.0]
+
+[[training.bot_spawns]]
+position = [26.0, 2.0, 26.0]

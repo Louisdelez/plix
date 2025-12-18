@@ -1,0 +1,42 @@
+[package]
+name = "plix-launcher"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Plix game launcher with automatic updates"
+
+[[bin]]
+name = "plix-launcher"
+path = "src/main.rs"
+
+[dependencies]
+# HTTP client (blocking for simplicity)
+reqwest = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+toml = { workspace = true }
+
+# Checksum
+sha2 = "0.10"
+
+# Version comparison
+semver = "1.0"
+
+# CLI
+clap = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+
+# Platform directories
+dirs-next = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

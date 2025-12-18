@@ -1,0 +1,10 @@
+# Rust toolchain pinning for reproducible builds
+# Feature 028: Dedicated Server Packaging
+#
+# This file ensures all developers and CI use the exact same Rust version.
+# To update: change the channel version and run `rustup update`
+
+[toolchain]
+channel = "1.83.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]

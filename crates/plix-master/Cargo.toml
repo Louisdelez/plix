@@ -1,0 +1,39 @@
+[package]
+name = "plix-master"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Master server for plix server browser - server directory and discovery"
+
+[[bin]]
+name = "plix-master"
+path = "src/main.rs"
+
+[dependencies]
+# HTTP server
+axum = "0.7"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["trace"] }
+
+# Async runtime
+tokio = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# CLI
+clap = { workspace = true }
+
+# Shared types
+plix-common = { workspace = true }
+
+[dev-dependencies]
+reqwest = { workspace = true }
+tempfile = { workspace = true }

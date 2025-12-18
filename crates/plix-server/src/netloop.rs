@@ -30,6 +30,8 @@ impl ServerNetLoop {
             ClientMessage::Connect {
                 protocol_version: _,
                 name: _,
+                account_id: _,
+                auth_token: _,
             } => {
                 // Handle connection request
             }
@@ -49,6 +51,42 @@ impl ServerNetLoop {
             }
             ClientMessage::ReadyToggle => {
                 // Ready toggle is handled in main server
+                // This handler exists for exhaustive matching
+            }
+            ClientMessage::TrainingReset => {
+                // Training reset is handled in main server
+                // This handler exists for exhaustive matching
+            }
+            ClientMessage::TrainingStatsRequest => {
+                // Training stats request is handled in main server
+                // This handler exists for exhaustive matching
+            }
+            ClientMessage::SelectHotbarSlot { .. } => {
+                // Slot selection is handled in main server
+                // This handler exists for exhaustive matching
+            }
+            ClientMessage::UseActiveItem => {
+                // Item usage is handled in main server
+                // This handler exists for exhaustive matching
+            }
+            ClientMessage::CraftRequest { .. } => {
+                // Craft requests are handled in main server
+                // This handler exists for exhaustive matching
+            }
+            ClientMessage::BuyRequest { .. } => {
+                // Buy requests are handled in main server
+                // This handler exists for exhaustive matching
+            }
+            ClientMessage::BalanceRequest => {
+                // Balance requests are handled in main server
+                // This handler exists for exhaustive matching
+            }
+            ClientMessage::ShopListRequest => {
+                // Shop list requests are handled in main server
+                // This handler exists for exhaustive matching
+            }
+            ClientMessage::RenameRequest { .. } => {
+                // Rename requests are handled in main server
                 // This handler exists for exhaustive matching
             }
         }

@@ -1,0 +1,72 @@
+# CEF UI Configuration Schema
+# Feature: 030-cef-ui-shell
+# Location: ~/.config/plix/config.toml (merged with existing client config)
+
+[ui]
+# Enable CEF-based UI rendering
+# When false, uses native UI (Feature 005) as fallback
+# Default: true (if CEF feature is compiled in)
+# Type: boolean
+cef_enabled = true
+
+# Enable Chrome DevTools for debugging HTML/CSS/JS
+# When true, DevTools server starts on port 9222
+# Default: false
+# Type: boolean
+cef_devtools = false
+
+# Initial HTML page to load on startup
+# Path is relative to assets/ui/ directory
+# Must be a valid local file path (no "..", no absolute paths)
+# Default: "index.html"
+# Type: string
+cef_initial_page = "index.html"
+
+# CEF rendering frame rate limit
+# Higher values = smoother UI but more CPU/GPU usage
+# Range: 1-120
+# Default: 60
+# Type: integer
+cef_frame_rate = 60
+
+# ============================================================
+# Validation Rules
+# ============================================================
+#
+# cef_enabled:
+#   - Must be boolean
+#   - If true but CEF unavailable, logs warning and uses fallback
+#
+# cef_devtools:
+#   - Must be boolean
+#   - Only takes effect if cef_enabled = true
+#
+# cef_initial_page:
+#   - Must be non-empty string
+#   - Must not contain ".." (path traversal)
+#   - Must not start with "/" (absolute path)
+#   - File must exist in assets/ui/ directory
+#   - If file not found, logs error and shows blank page
+#
+# cef_frame_rate:
+#   - Must be integer in range [1, 120]
+#   - Values outside range are clamped
+#   - 60 is recommended for most use cases
+#
+# ============================================================
+# CLI Flag Overrides
+# ============================================================
+#
+# --cef-ui        → cef_enabled = true  (overrides config)
+# --no-cef-ui     → cef_enabled = false (overrides config)
+# --cef-devtools  → cef_devtools = true (overrides config)
+#
+# ============================================================
+# Environment Variable Overrides
+# ============================================================
+#
+# PLIX_CEF_ENABLED=1    → cef_enabled = true
+# PLIX_CEF_ENABLED=0    → cef_enabled = false
+# PLIX_CEF_DEVTOOLS=1   → cef_devtools = true
+#
+# Priority: CLI flags > env vars > config file > defaults

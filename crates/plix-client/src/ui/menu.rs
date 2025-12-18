@@ -10,6 +10,7 @@ use crate::render::UIQuad;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PauseMenuItem {
     Resume,
+    Servers,
     Settings,
     Quit,
 }
@@ -19,6 +20,7 @@ impl PauseMenuItem {
     pub fn all() -> &'static [PauseMenuItem] {
         &[
             PauseMenuItem::Resume,
+            PauseMenuItem::Servers,
             PauseMenuItem::Settings,
             PauseMenuItem::Quit,
         ]
@@ -28,6 +30,7 @@ impl PauseMenuItem {
     pub fn display_name(&self) -> &'static str {
         match self {
             PauseMenuItem::Resume => "Resume",
+            PauseMenuItem::Servers => "Servers",
             PauseMenuItem::Settings => "Settings",
             PauseMenuItem::Quit => "Quit",
         }
@@ -612,6 +615,9 @@ mod tests {
         let mut menu = PauseMenu::new();
 
         menu.move_down();
+        assert_eq!(menu.selected_item(), PauseMenuItem::Servers);
+
+        menu.move_down();
         assert_eq!(menu.selected_item(), PauseMenuItem::Settings);
 
         menu.move_down();
@@ -700,5 +706,234 @@ mod tests {
 
         // Should have overlay + bg + items + selection indicators + key indicators
         assert!(quads.len() >= 12);
+    }
+
+    #[test]
+    fn test_server_browser_menu_navigation() {
+        let mut menu = ServerBrowserMenu::new();
+
+        assert_eq!(menu.selected_index(), 0);
+
+        // With no servers, navigation should do nothing
+        menu.move_down();
+        assert_eq!(menu.selected_index(), 0);
+
+        // Add mock server count
+        menu.set_server_count(3);
+
+        menu.move_down();
+        assert_eq!(menu.selected_index(), 1);
+
+        menu.move_down();
+        assert_eq!(menu.selected_index(), 2);
+
+        // Wrap around
+        menu.move_down();
+        assert_eq!(menu.selected_index(), 0);
+
+        menu.move_up();
+        assert_eq!(menu.selected_index(), 2);
+    }
+}
+
+/// Server browser menu for displaying and selecting servers
+pub struct ServerBrowserMenu {
+    /// Currently selected server index (0-based)
+    selected: usize,
+    /// Number of servers in the list
+    server_count: usize,
+    /// Status message to display
+    status: String,
+}
+
+impl Default for ServerBrowserMenu {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ServerBrowserMenu {
+    /// Create new server browser menu
+    pub fn new() -> Self {
+        Self {
+            selected: 0,
+            server_count: 0,
+            status: "Press R to refresh server list".to_string(),
+        }
+    }
+
+    /// Get currently selected server index (0-based)
+    pub fn selected_index(&self) -> usize {
+        self.selected
+    }
+
+    /// Set the number of servers in the list
+    pub fn set_server_count(&mut self, count: usize) {
+        self.server_count = count;
+        if self.selected >= count && count > 0 {
+            self.selected = count - 1;
+        }
+    }
+
+    /// Set status message
+    pub fn set_status(&mut self, status: impl Into<String>) {
+        self.status = status.into();
+    }
+
+    /// Get status message
+    pub fn status(&self) -> &str {
+        &self.status
+    }
+
+    /// Move selection up (wrap around)
+    pub fn move_up(&mut self) {
+        if self.server_count == 0 {
+            return;
+        }
+        if self.selected == 0 {
+            self.selected = self.server_count - 1;
+        } else {
+            self.selected -= 1;
+        }
+    }
+
+    /// Move selection down (wrap around)
+    pub fn move_down(&mut self) {
+        if self.server_count == 0 {
+            return;
+        }
+        self.selected = (self.selected + 1) % self.server_count;
+    }
+
+    /// Reset selection
+    pub fn reset(&mut self) {
+        self.selected = 0;
+    }
+
+    /// Render server browser menu
+    /// server_names: list of server display strings
+    pub fn render(
+        &self,
+        screen_width: f32,
+        screen_height: f32,
+        server_names: &[String],
+    ) -> Vec<UIQuad> {
+        let mut quads = Vec::new();
+
+        let item_height = 35.0;
+        let item_width = 400.0;
+        let item_spacing = 6.0;
+        let max_visible = 10; // Maximum servers to show
+
+        let visible_count = server_names.len().min(max_visible);
+        let total_height = if visible_count > 0 {
+            (visible_count as f32) * item_height + ((visible_count - 1) as f32) * item_spacing
+        } else {
+            item_height // For "no servers" message
+        };
+
+        // Semi-transparent background
+        quads.push(UIQuad {
+            x: 0.0,
+            y: 0.0,
+            width: screen_width,
+            height: screen_height,
+            color: [0.0, 0.0, 0.0, 0.7],
+        });
+
+        // Menu background
+        let menu_bg_padding = 25.0;
+        let title_space = 50.0;
+        quads.push(UIQuad {
+            x: 0.0,
+            y: 0.0,
+            width: item_width + menu_bg_padding * 2.0,
+            height: total_height + menu_bg_padding * 2.0 + title_space,
+            color: [0.1, 0.12, 0.15, 0.95],
+        });
+
+        // Title bar
+        quads.push(UIQuad {
+            x: 0.0,
+            y: -total_height / 2.0 - menu_bg_padding - 15.0,
+            width: item_width,
+            height: 30.0,
+            color: [0.2, 0.3, 0.5, 1.0],
+        });
+
+        if server_names.is_empty() {
+            // "No servers" indicator
+            quads.push(UIQuad {
+                x: 0.0,
+                y: 0.0,
+                width: item_width - 20.0,
+                height: item_height,
+                color: [0.3, 0.3, 0.35, 0.8],
+            });
+        } else {
+            // Render server list (scrollable in future)
+            let start_y = -total_height / 2.0 + item_height / 2.0 + 20.0;
+
+            for (i, _name) in server_names.iter().enumerate().take(max_visible) {
+                let y = start_y + (i as f32) * (item_height + item_spacing);
+
+                let bg_color = if i == self.selected {
+                    [0.3, 0.5, 0.7, 1.0] // Highlighted blue
+                } else {
+                    [0.2, 0.2, 0.25, 0.8]
+                };
+
+                quads.push(UIQuad {
+                    x: 0.0,
+                    y,
+                    width: item_width - 20.0,
+                    height: item_height,
+                    color: bg_color,
+                });
+
+                // Selection indicator
+                if i == self.selected {
+                    quads.push(UIQuad {
+                        x: -item_width / 2.0 + 15.0,
+                        y,
+                        width: 4.0,
+                        height: item_height - 6.0,
+                        color: [1.0, 1.0, 1.0, 1.0],
+                    });
+                }
+
+                // Server index indicator (dots for index number)
+                let idx_x = -item_width / 2.0 + 30.0;
+                for j in 0..=(i.min(9)) {
+                    quads.push(UIQuad {
+                        x: idx_x + (j as f32) * 8.0,
+                        y,
+                        width: 5.0,
+                        height: 5.0,
+                        color: [1.0, 1.0, 1.0, 0.7],
+                    });
+                }
+
+                // Player count indicator (right side) - placeholder colored box
+                quads.push(UIQuad {
+                    x: item_width / 2.0 - 50.0,
+                    y,
+                    width: 40.0,
+                    height: item_height - 10.0,
+                    color: [0.4, 0.6, 0.4, 0.9],
+                });
+            }
+        }
+
+        // Help text indicator at bottom
+        quads.push(UIQuad {
+            x: 0.0,
+            y: total_height / 2.0 + menu_bg_padding + 5.0,
+            width: item_width,
+            height: 20.0,
+            color: [0.15, 0.15, 0.2, 0.8],
+        });
+
+        quads
     }
 }

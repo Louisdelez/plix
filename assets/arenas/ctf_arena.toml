@@ -1,0 +1,150 @@
+# CTF Arena - Capture The Flag game mode
+# Two teams compete to capture the enemy's flag and return it to their base
+
+[metadata]
+name = "CTF Arena"
+version = "1.0.0"
+size = [80, 24, 48]
+game_mode = "ctf"
+
+# Team 0 (Blue) spawn points - near their base on the left side
+[[spawn_points]]
+team = 0
+position = [12.0, 1.0, 20.0]
+rotation = 0.0
+
+[[spawn_points]]
+team = 0
+position = [12.0, 1.0, 24.0]
+rotation = 0.0
+
+[[spawn_points]]
+team = 0
+position = [12.0, 1.0, 28.0]
+rotation = 0.0
+
+[[spawn_points]]
+team = 0
+position = [16.0, 1.0, 24.0]
+rotation = 0.0
+
+# Team 1 (Red) spawn points - near their base on the right side
+[[spawn_points]]
+team = 1
+position = [68.0, 1.0, 20.0]
+rotation = 180.0
+
+[[spawn_points]]
+team = 1
+position = [68.0, 1.0, 24.0]
+rotation = 180.0
+
+[[spawn_points]]
+team = 1
+position = [68.0, 1.0, 28.0]
+rotation = 180.0
+
+[[spawn_points]]
+team = 1
+position = [64.0, 1.0, 24.0]
+rotation = 180.0
+
+# Flag zones - each team needs a flag_base (where their flag spawns)
+# and a capture_zone (where they bring the enemy flag to score)
+
+# Team 0 (Blue) flag base - small platform where their flag sits
+[[flag_zones]]
+team = 0
+zone_type = "flag_base"
+min = [4.0, 1.0, 22.0]
+max = [8.0, 5.0, 26.0]
+
+# Team 0 (Blue) capture zone - larger area where they can capture
+[[flag_zones]]
+team = 0
+zone_type = "capture_zone"
+min = [2.0, 0.0, 18.0]
+max = [12.0, 6.0, 30.0]
+
+# Team 1 (Red) flag base
+[[flag_zones]]
+team = 1
+zone_type = "flag_base"
+min = [72.0, 1.0, 22.0]
+max = [76.0, 5.0, 26.0]
+
+# Team 1 (Red) capture zone
+[[flag_zones]]
+team = 1
+zone_type = "capture_zone"
+min = [68.0, 0.0, 18.0]
+max = [78.0, 6.0, 30.0]
+
+[blocks]
+# Stone floor at y=0
+floor = { y = 0, block = "stone" }
+
+# Brick walls around the border
+walls = { border = true, height = 10, block = "brick" }
+
+# Team 0 (Blue) base platform
+[[blocks.regions]]
+min = [2, 1, 18]
+max = [14, 2, 30]
+block = "metal"
+
+# Team 0 flag pedestal
+[[blocks.regions]]
+min = [5, 2, 23]
+max = [7, 3, 25]
+block = "brick"
+
+# Team 1 (Red) base platform
+[[blocks.regions]]
+min = [66, 1, 18]
+max = [78, 2, 30]
+block = "metal"
+
+# Team 1 flag pedestal
+[[blocks.regions]]
+min = [73, 2, 23]
+max = [75, 3, 25]
+block = "brick"
+
+# Center bridge/platform
+[[blocks.regions]]
+min = [36, 1, 20]
+max = [44, 2, 28]
+block = "stone"
+
+# Center obstacles - pillars
+[[blocks.regions]]
+min = [38, 2, 22]
+max = [40, 6, 24]
+block = "brick"
+
+[[blocks.regions]]
+min = [40, 2, 24]
+max = [42, 6, 26]
+block = "brick"
+
+# Side corridors cover
+[[blocks.regions]]
+min = [24, 1, 4]
+max = [32, 5, 8]
+block = "stone"
+
+[[blocks.regions]]
+min = [48, 1, 4]
+max = [56, 5, 8]
+block = "stone"
+
+[[blocks.regions]]
+min = [24, 1, 40]
+max = [32, 5, 44]
+block = "stone"
+
+[[blocks.regions]]
+min = [48, 1, 40]
+max = [56, 5, 44]
+block = "stone"

@@ -13,6 +13,14 @@ pub struct AntiCheatConfig {
     pub max_block_edits_per_second: u32,
     /// Maximum ready toggles per second (default: 5)
     pub max_ready_toggles_per_second: u32,
+    /// Maximum training resets per second (default: 1)
+    pub max_training_resets_per_second: u32,
+    /// Maximum hotbar slot selections per second (default: 20)
+    pub max_slot_selects_per_second: u32,
+    /// Maximum inventory item uses per second (default: 4)
+    pub max_inventory_uses_per_second: u32,
+    /// Maximum shop buy requests per second (default: 5)
+    pub max_shop_buys_per_second: u32,
 
     // Physics limits (per tick at 60Hz)
     /// Maximum movement distance per tick in blocks (default: 0.25)
@@ -41,6 +49,10 @@ impl Default for AntiCheatConfig {
             max_attacks_per_second: 4,  // 2x theoretical max (cooldown-limited)
             max_block_edits_per_second: 10, // ~2.5x theoretical max
             max_ready_toggles_per_second: 5, // No gameplay reason to spam
+            max_training_resets_per_second: 1, // Once per second to prevent spam
+            max_slot_selects_per_second: 20, // Allows rapid scroll wheel usage
+            max_inventory_uses_per_second: 4, // ~2x theoretical max (cooldown-limited)
+            max_shop_buys_per_second: 5, // 5 requests per second
 
             // Physics limits
             max_speed_per_tick: 0.25, // Based on movement system max speed

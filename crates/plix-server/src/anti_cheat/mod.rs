@@ -37,6 +37,8 @@ pub enum InfractionType {
     BlockEditRateExceeded,
     /// Ready toggle rate exceeded
     ReadyToggleRateExceeded,
+    /// Training reset rate exceeded
+    TrainingResetRateExceeded,
 
     // Physics sanity
     /// Speed exceeded maximum allowed
@@ -56,4 +58,12 @@ pub enum ActionType {
     BlockEdit,
     /// Ready toggle
     ReadyToggle,
+    /// Training reset (once per second)
+    TrainingReset,
+    /// Hotbar slot selection
+    SlotSelect,
+    /// Inventory item use
+    InventoryUse,
+    /// Shop purchase (5 req/sec)
+    ShopBuy,
 }

@@ -4,6 +4,7 @@
 use std::net::SocketAddr;
 
 use plix_arena::format::{Arena, ArenaMetadata, BlockDefinitions, LoadedArena};
+use plix_common::identity::SessionId;
 use plix_common::math::Vec3;
 use plix_common::protocol::PlayerInput;
 use plix_common::time::Tick;
@@ -19,6 +20,7 @@ fn make_test_arena() -> LoadedArena {
                 name: "Test".to_string(),
                 version: "1.0".to_string(),
                 size: [64, 32, 64],
+                game_mode: plix_common::GameMode::Tdm,
             },
             spawn_points: vec![],
             blocks: BlockDefinitions {
@@ -26,6 +28,10 @@ fn make_test_arena() -> LoadedArena {
                 walls: None,
                 regions: vec![],
             },
+            flag_zones: vec![],
+            br_lite: None,
+            training: None,
+            economy: None,
         },
         blocks: vec![],
     }
@@ -56,10 +62,10 @@ fn test_two_players_movement() {
     let addr2: SocketAddr = "127.0.0.1:1002".parse().unwrap();
 
     let id1 = sessions
-        .add_player("Player1".into(), TeamId::TEAM_0, addr1)
+        .add_player("Player1".into(), TeamId::TEAM_0, addr1, SessionId::new(1))
         .unwrap();
     let id2 = sessions
-        .add_player("Player2".into(), TeamId::TEAM_1, addr2)
+        .add_player("Player2".into(), TeamId::TEAM_1, addr2, SessionId::new(2))
         .unwrap();
 
     // Spawn players at different positions
@@ -110,10 +116,10 @@ fn test_players_see_each_other_positions() {
     let addr2: SocketAddr = "127.0.0.1:1002".parse().unwrap();
 
     let id1 = sessions
-        .add_player("Player1".into(), TeamId::TEAM_0, addr1)
+        .add_player("Player1".into(), TeamId::TEAM_0, addr1, SessionId::new(1))
         .unwrap();
     let id2 = sessions
-        .add_player("Player2".into(), TeamId::TEAM_1, addr2)
+        .add_player("Player2".into(), TeamId::TEAM_1, addr2, SessionId::new(2))
         .unwrap();
 
     // Spawn at specific positions
@@ -149,7 +155,7 @@ fn test_continuous_movement_updates() {
 
     let addr: SocketAddr = "127.0.0.1:1001".parse().unwrap();
     let id = sessions
-        .add_player("Player".into(), TeamId::TEAM_0, addr)
+        .add_player("Player".into(), TeamId::TEAM_0, addr, SessionId::new(1))
         .unwrap();
     sessions
         .get_mut(id)

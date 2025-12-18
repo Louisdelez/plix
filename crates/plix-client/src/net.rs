@@ -37,6 +37,8 @@ impl ClientNet {
         self.outgoing.push(ClientMessage::Connect {
             protocol_version: plix_common::protocol::PROTOCOL_VERSION,
             name,
+            account_id: None, // v2 placeholder
+            auth_token: None, // v2 placeholder
         });
     }
 
@@ -66,11 +68,21 @@ impl ClientNet {
                 tick,
                 tick_rate,
                 arena_data,
+                display_name,
+                session_id,
             } => {
                 if let Some(conn) = &mut self.connection {
                     conn.set_connected();
                 }
-                // TODO: Store player ID, sync tick, load arena
+                // TODO: Store player ID, display_name, session_id, sync tick, load arena
+                let _ = (
+                    player_id,
+                    tick,
+                    tick_rate,
+                    arena_data,
+                    display_name,
+                    session_id,
+                );
             }
             ServerMessage::Rejected { reason } => {
                 if let Some(conn) = &mut self.connection {
@@ -93,6 +105,18 @@ impl ClientNet {
             }
             ServerMessage::Event(event) => {
                 // TODO: Process event
+            }
+            ServerMessage::TrainingStats {
+                hits,
+                kills,
+                attacks,
+                accuracy_pct,
+                session_duration_secs,
+            } => {
+                // TODO: Display training stats UI
+            }
+            ServerMessage::InventoryUpdate(inventory_snapshot) => {
+                // TODO: Update local inventory UI
             }
         }
     }

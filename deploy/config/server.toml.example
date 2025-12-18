@@ -1,0 +1,94 @@
+# =============================================================================
+# Plix Server Configuration Example
+# Feature 028: Dedicated Server Packaging
+# =============================================================================
+#
+# Configuration Priority: CLI flags > Environment variables > This file > Defaults
+#
+# Environment variables use PLIX_ prefix (e.g., PLIX_PORT, PLIX_SERVER_NAME)
+# This file format is for documentation - actual config is via CLI/ENV
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Server Identity
+# -----------------------------------------------------------------------------
+
+# Display name shown in server browser
+# CLI: --server-name    ENV: PLIX_SERVER_NAME
+server_name = "My Plix Server"
+
+# Geographic region for server browser filtering
+# CLI: --region         ENV: PLIX_REGION
+region = "eu-west"
+
+# Server tags for filtering (comma-separated in ENV)
+# CLI: --tags           ENV: PLIX_TAGS
+tags = ["competitive", "vanilla"]
+
+# -----------------------------------------------------------------------------
+# Network
+# -----------------------------------------------------------------------------
+
+# UDP port for game traffic
+# CLI: --port           ENV: PLIX_PORT
+port = 7777
+
+# Maximum concurrent players (1-64)
+# CLI: --max-players    ENV: PLIX_MAX_PLAYERS
+max_players = 16
+
+# -----------------------------------------------------------------------------
+# Gameplay
+# -----------------------------------------------------------------------------
+
+# Game mode: ffa, tdm, ctf, br_lite
+# CLI: --game-modes     ENV: PLIX_GAME_MODE
+game_mode = "ffa"
+
+# Arena name (from assets/arenas/)
+# CLI: --arena          ENV: PLIX_ARENA
+arena = "test_arena"
+
+# Server tick rate (20-60 Hz)
+# CLI: --tickrate       ENV: PLIX_TICKRATE
+tickrate = 60
+
+# -----------------------------------------------------------------------------
+# Master Server (Server Browser Registration)
+# -----------------------------------------------------------------------------
+
+# Master server URL for server browser (leave empty to disable)
+# CLI: --master-url     ENV: PLIX_MASTER_URL
+# master_url = "http://localhost:8080"
+
+# -----------------------------------------------------------------------------
+# Persistence (Feature 014)
+# -----------------------------------------------------------------------------
+
+# Enable world persistence (saves block edits)
+# CLI: --persistence    ENV: PLIX_PERSISTENCE
+persistence = false
+
+# World ID for persistence (optional, defaults to server_<arena>)
+# CLI: --world-id       ENV: PLIX_WORLD_ID
+# world_id = "my_world"
+
+# Auto-save interval in seconds
+# CLI: --autosave-interval    ENV: PLIX_AUTOSAVE_INTERVAL
+autosave_interval = 300
+
+# -----------------------------------------------------------------------------
+# Paths
+# -----------------------------------------------------------------------------
+
+# Assets directory (arenas, textures, etc.)
+# CLI: --assets-dir     ENV: PLIX_ASSETS_DIR
+assets_dir = "assets"
+
+# -----------------------------------------------------------------------------
+# Logging
+# -----------------------------------------------------------------------------
+
+# Log level: trace, debug, info, warn, error
+# CLI: --log-level      ENV: PLIX_LOG_LEVEL or RUST_LOG
+log_level = "info"

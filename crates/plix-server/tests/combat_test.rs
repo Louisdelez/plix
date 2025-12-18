@@ -4,6 +4,7 @@
 use std::net::SocketAddr;
 
 use plix_common::combat::CombatConfig;
+use plix_common::identity::SessionId;
 use plix_common::math::Vec3;
 use plix_common::time::Tick;
 use plix_common::types::{PlayerId, TeamId};
@@ -22,10 +23,10 @@ fn test_combat_hit_server_validated() {
     let addr2: SocketAddr = "127.0.0.1:1002".parse().unwrap();
 
     let attacker_id = sessions
-        .add_player("Attacker".into(), TeamId::TEAM_0, addr1)
+        .add_player("Attacker".into(), TeamId::TEAM_0, addr1, SessionId::new(1))
         .unwrap();
     let target_id = sessions
-        .add_player("Target".into(), TeamId::TEAM_1, addr2)
+        .add_player("Target".into(), TeamId::TEAM_1, addr2, SessionId::new(2))
         .unwrap();
 
     let current_tick = Tick(100);
@@ -83,10 +84,10 @@ fn test_combat_out_of_range_rejected() {
     let addr2: SocketAddr = "127.0.0.1:1002".parse().unwrap();
 
     let attacker_id = sessions
-        .add_player("Attacker".into(), TeamId::TEAM_0, addr1)
+        .add_player("Attacker".into(), TeamId::TEAM_0, addr1, SessionId::new(1))
         .unwrap();
     let target_id = sessions
-        .add_player("Target".into(), TeamId::TEAM_1, addr2)
+        .add_player("Target".into(), TeamId::TEAM_1, addr2, SessionId::new(2))
         .unwrap();
 
     let current_tick = Tick(100);
@@ -172,7 +173,7 @@ fn test_combat_damage_and_death() {
 
     let addr: SocketAddr = "127.0.0.1:1001".parse().unwrap();
     let id = sessions
-        .add_player("Player".into(), TeamId::TEAM_0, addr)
+        .add_player("Player".into(), TeamId::TEAM_0, addr, SessionId::new(1))
         .unwrap();
     sessions
         .get_mut(id)
@@ -260,10 +261,10 @@ fn test_moving_attacker_hits_stationary_target() {
     let addr2: SocketAddr = "127.0.0.1:1002".parse().unwrap();
 
     let attacker_id = sessions
-        .add_player("Attacker".into(), TeamId::TEAM_0, addr1)
+        .add_player("Attacker".into(), TeamId::TEAM_0, addr1, SessionId::new(1))
         .unwrap();
     let target_id = sessions
-        .add_player("Target".into(), TeamId::TEAM_1, addr2)
+        .add_player("Target".into(), TeamId::TEAM_1, addr2, SessionId::new(2))
         .unwrap();
 
     // Target is stationary

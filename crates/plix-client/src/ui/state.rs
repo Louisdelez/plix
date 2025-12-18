@@ -29,6 +29,12 @@ pub enum UiState {
         /// Action that currently has that key
         conflicting_action: Action,
     },
+
+    /// Server browser - viewing server list
+    ServerBrowser,
+
+    /// Refreshing server list (loading state)
+    ServerBrowserRefreshing,
 }
 
 impl Default for UiState {

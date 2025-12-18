@@ -1,0 +1,75 @@
+# =============================================================================
+# Plix Master Server Dockerfile - Multi-stage build
+# Feature 028: Dedicated Server Packaging
+# Server browser / discovery service
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Builder
+# Compiles plix-master in release mode
+# -----------------------------------------------------------------------------
+FROM debian:bookworm-slim AS builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust toolchain (version from rust-toolchain.toml)
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+    sh -s -- -y --default-toolchain 1.83.0 --profile minimal
+
+# Copy workspace files
+WORKDIR /build
+COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+COPY crates ./crates
+
+# Build release binary
+RUN cargo build --release --bin plix-master
+
+# -----------------------------------------------------------------------------
+# Stage 2: Runtime
+# Minimal image with only the binary
+# -----------------------------------------------------------------------------
+FROM debian:bookworm-slim
+
+# Install minimal runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user (UID 1000 for common host mapping)
+RUN groupadd -g 1000 plix && \
+    useradd -u 1000 -g plix -m -s /bin/bash plix
+
+# Copy binary from builder
+COPY --from=builder /build/target/release/plix-master /app/plix-master
+
+# Set working directory
+WORKDIR /app
+
+# Switch to non-root user
+USER plix
+
+# Default environment variables
+ENV RUST_LOG=info
+
+# Expose HTTP API port
+EXPOSE 8080/tcp
+
+# Health check - verify HTTP endpoint responds
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/servers || exit 1
+
+# Entrypoint and default command
+ENTRYPOINT ["/app/plix-master"]
+CMD ["--bind", "0.0.0.0:8080"]

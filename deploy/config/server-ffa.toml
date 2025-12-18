@@ -1,0 +1,23 @@
+# Plix Server - Free-For-All (FFA) Configuration
+# Default game mode - every player for themselves
+
+server_name = "FFA Arena"
+region = "unknown"
+tags = ["ffa", "casual"]
+
+port = 7777
+max_players = 16
+
+game_mode = "ffa"
+arena = "ffa_arena"
+tickrate = 60
+
+persistence = false
+log_level = "info"
+
+# To start with this config:
+# docker run -d -p 7777:7777/udp \
+#   -e PLIX_SERVER_NAME="FFA Arena" \
+#   -e PLIX_GAME_MODE=ffa \
+#   -e PLIX_MAX_PLAYERS=16 \
+#   plix-server

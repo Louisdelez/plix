@@ -5,16 +5,24 @@
 //! - Identifiers (PlayerId, EntityId, Tick, InputSeq)
 //! - Protocol messages (ClientMessage, ServerMessage)
 //! - Physics (MovementConfig, MovementState)
+//! - Block Physics (BlockPhysicsConfig, BlockPhysicsEvent, BlockPhysicsQueue)
 //! - Combat (CombatConfig)
 //! - Metrics (RollingWindow, Stats)
+//! - Server Browser (ServerEntry, ServerListResponse)
 //! - Time utilities
 
+pub mod block_physics;
 pub mod chunk;
 pub mod combat;
+pub mod economy;
+pub mod identity;
+pub mod inventory;
 pub mod math;
 pub mod metrics;
+pub mod persist;
 pub mod physics;
 pub mod protocol;
+pub mod server_browser;
 pub mod time;
 pub mod types;
 pub mod world;
@@ -24,10 +32,14 @@ pub use combat::CombatConfig;
 pub use math::{Rotation, Vec3, AABB};
 pub use physics::{CollisionResult, MovementConfig, MovementState};
 pub use protocol::{
-    ClientMessage, GameEvent, MatchState, PlayerSnapshot, ServerMessage, WorldSnapshot,
+    ClientMessage, GameEvent, InventorySnapshot, MatchState, PlayerSnapshot, ServerMessage,
+    SlotSnapshot, WorldSnapshot,
 };
 pub use time::Tick;
-pub use types::{BlockPos, BlockType, ChunkCoord, EntityId, InputSeq, PlayerId, TeamId};
+pub use types::{
+    BlockPos, BlockType, ChunkCoord, EntityId, GameMode, InputSeq, ItemId, LootEntityId, PlayerId,
+    TeamId,
+};
 
 // Re-export commonly used chunk items
 pub use chunk::{Chunk, CHUNK_SIZE};

@@ -1,0 +1,131 @@
+# =============================================================================
+# Plix Server Docker Compose Configuration
+# Feature 028: Dedicated Server Packaging
+# =============================================================================
+#
+# Usage:
+#   docker compose up                       # Start server only (default)
+#   docker compose --profile full up        # Start server + master
+#   docker compose --profile master up      # Start master only
+#
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # Game Server
+  # ===========================================================================
+  plix-server:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    image: plix-server:latest
+    container_name: plix-server
+    ports:
+      # Game port (UDP) - main game traffic
+      - "${PLIX_PORT:-7777}:7777/udp"
+    volumes:
+      # ===========================================================================
+      # Persistent Data Volume
+      # ===========================================================================
+      # The /data directory contains all persistent server data:
+      #
+      # Directory Structure:
+      #   /data/
+      #   ├── config/    - Custom server configuration files
+      #   ├── worlds/    - World persistence data (Feature 014)
+      #   └── logs/      - Optional file-based logs (if enabled)
+      #
+      # Volume Options:
+      #   1. Named volume (recommended for production):
+      #      - plix-data:/data
+      #
+      #   2. Bind mount for direct access:
+      #      - /path/on/host:/data
+      #
+      #   3. Config-only mount (read-only):
+      #      - ./my-config:/data/config:ro
+      #
+      # Ephemeral Mode:
+      #   Remove the volume mount entirely to run without persistence.
+      #   All data will be lost when the container stops.
+      # ===========================================================================
+      - plix-data:/data
+    environment:
+      # Server identity
+      - PLIX_SERVER_NAME=${PLIX_SERVER_NAME:-Plix Server}
+      - PLIX_REGION=${PLIX_REGION:-unknown}
+      - PLIX_TAGS=${PLIX_TAGS:-}
+      # Gameplay
+      - PLIX_GAME_MODE=${PLIX_GAME_MODE:-ffa}
+      - PLIX_ARENA=${PLIX_ARENA:-test_arena}
+      - PLIX_MAX_PLAYERS=${PLIX_MAX_PLAYERS:-16}
+      - PLIX_TICKRATE=${PLIX_TICKRATE:-60}
+      # Master server registration (auto-discovers master in compose network)
+      - PLIX_MASTER_URL=${PLIX_MASTER_URL:-http://plix-master:8080}
+      # Logging
+      - RUST_LOG=${RUST_LOG:-info}
+    restart: unless-stopped
+    networks:
+      - plix-network
+    depends_on:
+      plix-master:
+        condition: service_healthy
+        required: false
+    healthcheck:
+      test: ["CMD", "pgrep", "-x", "plix-server"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ===========================================================================
+  # Master Server (Server Browser)
+  # ===========================================================================
+  plix-master:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.master
+    image: plix-master:latest
+    container_name: plix-master
+    ports:
+      # HTTP API port for server browser
+      - "${PLIX_MASTER_PORT:-8080}:8080/tcp"
+    environment:
+      # Master server configuration
+      - PLIX_MASTER_TTL=${PLIX_MASTER_TTL:-60}
+      - PLIX_MASTER_RATE_LIMIT=${PLIX_MASTER_RATE_LIMIT:-10}
+      # Logging
+      - RUST_LOG=${RUST_LOG:-info}
+    restart: unless-stopped
+    networks:
+      - plix-network
+    profiles:
+      - full
+      - master
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/servers"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  plix-data:
+    driver: local
+    # To use a specific host path, uncomment and modify:
+    # driver_opts:
+    #   type: none
+    #   device: /path/to/plix/data
+    #   o: bind
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  plix-network:
+    driver: bridge
+    # Internal network for service discovery
+    # plix-server can reach plix-master at http://plix-master:8080

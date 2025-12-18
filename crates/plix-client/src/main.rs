@@ -24,15 +24,18 @@ use plix_client::config::{
 };
 use plix_client::input::{InputManager, Key};
 use plix_client::interpolation::InterpolationManager;
+use plix_client::profile::{load_profile, save_profile, PlayerProfile};
 use plix_client::raycast::{raycast_blocks, MAX_RAYCAST_DISTANCE};
 use plix_client::render::{Camera, PlayerInstance, RenderEngine, UIQuad};
+use plix_client::server_browser::BrowserState;
 use plix_client::ui::hud::{CombatEvent, Hud};
 use plix_client::ui::net_debug::{NetDebugData, NetDebugOverlay};
 use plix_client::ui::state::UiState;
 use plix_client::ui::{
-    Crosshair, KeybindsMenu, KeybindsMenuItem, PauseMenu, PauseMenuItem, SettingsMenu,
-    SettingsMenuItem,
+    Crosshair, KeybindsMenu, KeybindsMenuItem, PauseMenu, PauseMenuItem, ServerBrowserMenu,
+    SettingsMenu, SettingsMenuItem,
 };
+use plix_client::ui_cef::{CefConfig, CefShell};
 use plix_client::world::ClientWorld;
 use plix_common::math::Vec3;
 use plix_common::protocol::{
@@ -64,6 +67,23 @@ struct Args {
     /// Headless mode (no window, connect and exit)
     #[arg(long)]
     headless: bool,
+
+    /// Master server URL for server browser (e.g., "http://localhost:8080")
+    #[arg(long, default_value = "http://localhost:8080")]
+    master_url: String,
+
+    // === CEF UI Shell flags (Feature 030) ===
+    /// Enable CEF-based HTML UI (overrides config)
+    #[arg(long, conflicts_with = "no_cef_ui")]
+    cef_ui: bool,
+
+    /// Disable CEF-based HTML UI, use native UI (overrides config)
+    #[arg(long, conflicts_with = "cef_ui")]
+    no_cef_ui: bool,
+
+    /// Enable CEF DevTools for debugging HTML/CSS/JS
+    #[arg(long)]
+    cef_devtools: bool,
 }
 
 /// Network connection state
@@ -127,10 +147,26 @@ struct GameState {
     rtt_samples: Vec<Duration>,
     // T040-T050: Network debug overlay
     net_debug_overlay: NetDebugOverlay,
+    // T049: Server browser state
+    browser_state: BrowserState,
+    browser_menu: ServerBrowserMenu,
+    // Cached server display names for browser menu
+    browser_server_names: Vec<String>,
+    // Player name for reconnection
+    player_name: String,
+    // CEF UI Shell (Feature 030)
+    cef_shell: CefShell,
 }
 
 impl GameState {
-    async fn new(window: Arc<Window>, server_addr: &str, player_name: &str) -> Self {
+    async fn new(
+        window: Arc<Window>,
+        server_addr: &str,
+        player_name: &str,
+        master_url: &str,
+        cef_ui_flag: Option<bool>, // --cef-ui or --no-cef-ui override
+        cef_devtools_flag: bool,   // --cef-devtools flag
+    ) -> Self {
         let size = window.inner_size();
         let mut engine = RenderEngine::new(window.clone()).await;
 
@@ -196,12 +232,37 @@ impl GameState {
         }
 
         // Load game configuration (T029)
-        let config = load_config();
+        let mut config = load_config();
         info!(
             sensitivity = config.sensitivity,
             fov = config.fov_degrees,
             "Config loaded"
         );
+
+        // T012: Apply CEF CLI flag overrides
+        if let Some(cef_enabled) = cef_ui_flag {
+            config.ui.enabled = cef_enabled;
+        }
+        if cef_devtools_flag {
+            config.ui.devtools = true;
+        }
+
+        // T013: Log CEF availability status
+        let cef_shell = CefShell::new(config.ui.clone());
+        if cef_shell.should_fallback() {
+            info!(
+                enabled = config.ui.enabled,
+                status = ?cef_shell.status(),
+                "CEF UI unavailable, using native UI fallback"
+            );
+        } else {
+            info!(
+                enabled = config.ui.enabled,
+                devtools = config.ui.devtools,
+                status = ?cef_shell.status(),
+                "CEF UI shell initialized"
+            );
+        }
 
         // Use FOV from config
         let mut camera = Camera::new(config.fov_degrees, size.width as f32 / size.height as f32);
@@ -259,6 +320,13 @@ impl GameState {
             rtt_samples: Vec::with_capacity(32),
             // T040-T050: Network debug overlay
             net_debug_overlay: NetDebugOverlay::new(),
+            // T049: Server browser state
+            browser_state: BrowserState::new(master_url),
+            browser_menu: ServerBrowserMenu::new(),
+            browser_server_names: Vec::new(),
+            player_name: player_name.to_string(),
+            // T012/T013: CEF shell initialized earlier with CLI overrides applied
+            cef_shell,
         }
     }
 
@@ -300,6 +368,8 @@ impl GameState {
         let msg = ClientMessage::Connect {
             protocol_version: PROTOCOL_VERSION,
             name: player_name.to_string(),
+            account_id: None, // v2 placeholder
+            auth_token: None, // v2 placeholder
         };
         let data = match plix_common::protocol::encode(&msg) {
             Ok(d) => d,
@@ -328,9 +398,13 @@ impl GameState {
                         tick,
                         tick_rate,
                         arena_data: _, // Ignored - client loads arena locally
+                        display_name,
+                        session_id,
                     }) => {
                         info!(
                             player_id = player_id.0,
+                            session_id = session_id.0,
+                            display_name = %display_name,
                             tick = tick.0,
                             tick_rate = tick_rate,
                             "Connected to server"
@@ -907,6 +981,13 @@ impl GameState {
                     &self.config.keybinds,
                 ));
             }
+            UiState::ServerBrowser | UiState::ServerBrowserRefreshing => {
+                ui_quads.extend(self.browser_menu.render(
+                    size.width as f32,
+                    size.height as f32,
+                    &self.browser_server_names,
+                ));
+            }
             _ => {}
         }
 
@@ -986,6 +1067,10 @@ impl GameState {
                         UiState::Rebinding(_) => {
                             self.set_ui_state(UiState::Keybinds);
                         }
+                        // T049: ESC in server browser goes back to pause menu
+                        UiState::ServerBrowser | UiState::ServerBrowserRefreshing => {
+                            self.set_ui_state(UiState::PauseMenu);
+                        }
                         // In other states, ESC goes back to pause menu
                         _ => {
                             self.set_ui_state(UiState::PauseMenu);
@@ -1000,6 +1085,7 @@ impl GameState {
                         UiState::PauseMenu => self.pause_menu.move_up(),
                         UiState::Settings => self.settings_menu.move_up(),
                         UiState::Keybinds => self.keybinds_menu.move_up(),
+                        UiState::ServerBrowser => self.browser_menu.move_up(),
                         _ => {}
                     }
                 }
@@ -1010,6 +1096,7 @@ impl GameState {
                         UiState::PauseMenu => self.pause_menu.move_down(),
                         UiState::Settings => self.settings_menu.move_down(),
                         UiState::Keybinds => self.keybinds_menu.move_down(),
+                        UiState::ServerBrowser => self.browser_menu.move_down(),
                         _ => {}
                     }
                 }
@@ -1028,8 +1115,18 @@ impl GameState {
                         UiState::Keybinds => {
                             self.handle_keybinds_menu_action();
                         }
+                        // T049: Connect to selected server
+                        UiState::ServerBrowser => {
+                            self.handle_server_browser_connect();
+                        }
                         _ => {}
                     }
+                }
+            }
+            // T049: R key to refresh server list in browser
+            KeyCode::KeyR => {
+                if pressed && self.ui_state == UiState::ServerBrowser {
+                    self.start_server_list_refresh();
                 }
             }
             // T059, T066: Left/Right arrows to adjust setting values
@@ -1095,6 +1192,11 @@ impl GameState {
             PauseMenuItem::Resume => {
                 // T049: Return to game
                 self.set_ui_state(UiState::InGame);
+            }
+            PauseMenuItem::Servers => {
+                // T049: Open server browser
+                self.browser_menu.reset();
+                self.set_ui_state(UiState::ServerBrowser);
             }
             PauseMenuItem::Settings => {
                 // T050: Open settings menu
@@ -1215,6 +1317,106 @@ impl GameState {
 
         // Return to keybinds menu
         self.set_ui_state(UiState::Keybinds);
+    }
+
+    /// T049: Start async server list refresh
+    fn start_server_list_refresh(&mut self) {
+        info!(
+            master_url = %self.browser_state.master_url(),
+            "Refreshing server list"
+        );
+        self.browser_menu.set_status("Refreshing...");
+        // Note: In a full async implementation, this would spawn a task.
+        // For the synchronous game loop, we do a blocking refresh here.
+        // In production, you'd want to use channels or Arc<Mutex> for async updates.
+        let master_url = self.browser_state.master_url().to_string();
+        match plix_client::server_browser::fetch::fetch_servers_blocking(&master_url) {
+            Ok(response) => {
+                let count = response.servers.len();
+                self.browser_server_names = response
+                    .servers
+                    .iter()
+                    .map(|s| {
+                        format!(
+                            "{} ({}/{}) [{}]",
+                            plix_client::server_browser::sanitize_display_string(&s.name, 32),
+                            s.player_count,
+                            s.max_players,
+                            s.region
+                        )
+                    })
+                    .collect();
+                self.browser_menu.set_server_count(count);
+                self.browser_menu.set_status(format!(
+                    "Found {} server(s). R=Refresh, Enter=Connect",
+                    count
+                ));
+                info!(count = count, "Server list refreshed");
+            }
+            Err(e) => {
+                warn!(error = %e, "Failed to refresh server list");
+                self.browser_menu
+                    .set_status(format!("Error: {}. Press R to retry", e));
+                self.browser_server_names.clear();
+                self.browser_menu.set_server_count(0);
+            }
+        }
+    }
+
+    /// T049: Handle connect to selected server
+    fn handle_server_browser_connect(&mut self) {
+        let index = self.browser_menu.selected_index();
+        let master_url = self.browser_state.master_url().to_string();
+
+        // Fetch fresh server list to get connection info
+        match plix_client::server_browser::fetch::fetch_servers_blocking(&master_url) {
+            Ok(response) => {
+                if let Some(server) = response.servers.get(index) {
+                    let addr = format!("{}:{}", server.host, server.port);
+                    info!(
+                        server_name = %server.name,
+                        address = %addr,
+                        "Connecting to server from browser"
+                    );
+
+                    // Disconnect from current server if connected
+                    if self.connection_state == ConnectionState::Connected {
+                        if let Some(socket) = &self.socket {
+                            let msg = ClientMessage::Disconnect;
+                            if let Ok(data) = plix_common::protocol::encode(&msg) {
+                                let _ = socket.send(&data);
+                            }
+                        }
+                    }
+
+                    // Connect to new server
+                    let (socket, connection_state, player_id, server_tick, tick_rate) =
+                        Self::connect_to_server(&addr, &self.player_name);
+
+                    self.socket = socket;
+                    self.connection_state = connection_state;
+                    self.player_id = player_id;
+                    self.server_tick = server_tick;
+                    self.tick_rate = tick_rate;
+
+                    if connection_state == ConnectionState::Connected {
+                        self.set_ui_state(UiState::InGame);
+                        self.browser_menu
+                            .set_status(format!("Connected to {}", server.name));
+                    } else {
+                        self.browser_menu
+                            .set_status(format!("Failed to connect to {}", server.name));
+                    }
+                } else {
+                    self.browser_menu.set_status("Invalid server selection");
+                }
+            }
+            Err(e) => {
+                warn!(error = %e, "Failed to fetch server for connection");
+                self.browser_menu
+                    .set_status(format!("Error: {}. Press R to refresh", e));
+            }
+        }
     }
 
     /// T059, T060, T061, T066, T067, T068: Adjust setting value by direction (-1 or +1)
@@ -1406,16 +1608,50 @@ impl ApplicationHandler for App {
 
         let window = Arc::new(event_loop.create_window(window_attrs).unwrap());
 
+        // Load player profile from disk (T035)
+        let profile = load_profile();
+        // Use profile display_name unless args.name was explicitly set (not default "Player")
+        let player_name = if self.args.name != "Player" {
+            self.args.name.clone()
+        } else {
+            profile.display_name.clone()
+        };
+        info!(
+            profile_name = %profile.display_name,
+            using_name = %player_name,
+            "Loaded player profile"
+        );
+
+        // T012: Determine CEF UI override from CLI flags
+        let cef_ui_flag = if self.args.cef_ui {
+            Some(true)
+        } else if self.args.no_cef_ui {
+            Some(false)
+        } else {
+            None // Use config default
+        };
+
         // Initialize rendering and network on this thread
-        let mut state =
-            pollster::block_on(GameState::new(window, &self.args.server, &self.args.name));
+        let mut state = pollster::block_on(GameState::new(
+            window,
+            &self.args.server,
+            &player_name,
+            &self.args.master_url,
+            cef_ui_flag,
+            self.args.cef_devtools,
+        ));
 
         // T073: Apply fullscreen setting from config on startup
         state.apply_fullscreen();
 
         self.state = Some(state);
 
-        info!(name = %self.args.name, server = %self.args.server, "Plix client started");
+        info!(
+            name = %player_name,
+            server = %self.args.server,
+            master_url = %self.args.master_url,
+            "Plix client started"
+        );
     }
 
     fn window_event(
@@ -1516,8 +1752,17 @@ fn main() {
 async fn run_headless(args: Args) {
     use plix_client::{Client, ClientConfig};
 
+    // Load profile and determine player name (T035)
+    let profile = load_profile();
+    let player_name = if args.name != "Player" {
+        args.name.clone()
+    } else {
+        profile.display_name.clone()
+    };
+    info!(profile_name = %profile.display_name, using_name = %player_name, "Loaded player profile");
+
     let config = ClientConfig {
-        name: args.name.clone(),
+        name: player_name.clone(),
         server_addr: args.server.parse().ok(),
     };
 

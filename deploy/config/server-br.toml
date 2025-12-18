@@ -1,0 +1,23 @@
+# Plix Server - Battle Royale Lite (BR) Configuration
+# Last player/team standing wins
+
+server_name = "Battle Royale"
+region = "unknown"
+tags = ["br", "battle-royale", "survival"]
+
+port = 7777
+max_players = 50  # BR supports more players
+
+game_mode = "br_lite"
+arena = "test_arena"
+tickrate = 60
+
+persistence = false
+log_level = "info"
+
+# To start with this config:
+# docker run -d -p 7777:7777/udp \
+#   -e PLIX_SERVER_NAME="Battle Royale" \
+#   -e PLIX_GAME_MODE=br_lite \
+#   -e PLIX_MAX_PLAYERS=50 \
+#   plix-server

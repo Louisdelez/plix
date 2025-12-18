@@ -5,6 +5,7 @@
 use std::net::SocketAddr;
 
 use plix_common::combat::CombatConfig;
+use plix_common::identity::SessionId;
 use plix_common::math::Vec3;
 use plix_common::time::Tick;
 use plix_common::types::{PlayerId, TeamId};
@@ -19,7 +20,13 @@ fn test_attack_blocked_on_invulnerable_target() {
     // Create a player who just spawned and is invulnerable
     let id = PlayerId(1);
     let addr: SocketAddr = "127.0.0.1:1001".parse().unwrap();
-    let mut player = ServerPlayer::new(id, "TestPlayer".into(), TeamId::TEAM_0, addr);
+    let mut player = ServerPlayer::new(
+        id,
+        "TestPlayer".into(),
+        TeamId::TEAM_0,
+        addr,
+        SessionId::new(1),
+    );
 
     // Spawn with invulnerability (using current_tick + respawn_invuln_ticks)
     let spawn_tick = Tick(100);
@@ -62,7 +69,13 @@ fn test_no_knockback_on_invulnerable_target() {
 
     let id = PlayerId(1);
     let addr: SocketAddr = "127.0.0.1:1001".parse().unwrap();
-    let mut player = ServerPlayer::new(id, "TestPlayer".into(), TeamId::TEAM_0, addr);
+    let mut player = ServerPlayer::new(
+        id,
+        "TestPlayer".into(),
+        TeamId::TEAM_0,
+        addr,
+        SessionId::new(1),
+    );
 
     let spawn_tick = Tick(100);
     player.spawn(
@@ -96,7 +109,13 @@ fn test_attack_succeeds_after_invuln_expires() {
 
     let id = PlayerId(1);
     let addr: SocketAddr = "127.0.0.1:1001".parse().unwrap();
-    let mut player = ServerPlayer::new(id, "TestPlayer".into(), TeamId::TEAM_0, addr);
+    let mut player = ServerPlayer::new(
+        id,
+        "TestPlayer".into(),
+        TeamId::TEAM_0,
+        addr,
+        SessionId::new(1),
+    );
 
     let spawn_tick = Tick(100);
     player.spawn(
@@ -145,7 +164,13 @@ fn test_invulnerable_until_tick_set_on_spawn() {
 
     let id = PlayerId(1);
     let addr: SocketAddr = "127.0.0.1:1001".parse().unwrap();
-    let mut player = ServerPlayer::new(id, "TestPlayer".into(), TeamId::TEAM_0, addr);
+    let mut player = ServerPlayer::new(
+        id,
+        "TestPlayer".into(),
+        TeamId::TEAM_0,
+        addr,
+        SessionId::new(1),
+    );
 
     // Initially no invulnerability
     assert!(
@@ -176,7 +201,13 @@ fn test_invuln_window_exact_duration() {
 
     let id = PlayerId(1);
     let addr: SocketAddr = "127.0.0.1:1001".parse().unwrap();
-    let mut player = ServerPlayer::new(id, "TestPlayer".into(), TeamId::TEAM_0, addr);
+    let mut player = ServerPlayer::new(
+        id,
+        "TestPlayer".into(),
+        TeamId::TEAM_0,
+        addr,
+        SessionId::new(1),
+    );
 
     let spawn_tick = Tick(0);
     player.spawn(
@@ -214,10 +245,10 @@ fn test_combat_system_skips_invulnerable_target() {
     let addr2: SocketAddr = "127.0.0.1:1002".parse().unwrap();
 
     let attacker_id = sessions
-        .add_player("Attacker".into(), TeamId::TEAM_0, addr1)
+        .add_player("Attacker".into(), TeamId::TEAM_0, addr1, SessionId::new(1))
         .unwrap();
     let target_id = sessions
-        .add_player("Target".into(), TeamId::TEAM_1, addr2)
+        .add_player("Target".into(), TeamId::TEAM_1, addr2, SessionId::new(2))
         .unwrap();
 
     let spawn_tick = Tick(100);

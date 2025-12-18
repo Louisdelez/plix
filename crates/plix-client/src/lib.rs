@@ -8,19 +8,26 @@
 //! - Voxel rendering with wgpu
 //! - HUD overlay
 //! - Configuration persistence
+//! - Optional CEF-based HTML UI (Feature 030)
 
 pub mod chunk_manager;
 pub mod chunk_mesher;
 pub mod commands;
 pub mod config;
+pub mod console;
 pub mod input;
 pub mod interpolation;
+pub mod matchmaking;
 pub mod net;
+pub mod persist;
 pub mod prediction;
+pub mod profile;
 pub mod raycast;
 pub mod reconciliation;
 pub mod render;
+pub mod server_browser;
 pub mod ui;
+pub mod ui_cef;
 pub mod world;
 
 use std::net::SocketAddr;
@@ -126,6 +133,8 @@ impl Client {
         let msg = ClientMessage::Connect {
             protocol_version: PROTOCOL_VERSION,
             name: self.config.name.clone(),
+            account_id: None, // v2 placeholder
+            auth_token: None, // v2 placeholder
         };
         self.send_message(&msg).await?;
 
@@ -161,9 +170,13 @@ impl Client {
                 tick,
                 tick_rate,
                 arena_data: _,
+                display_name,
+                session_id,
             } => {
                 info!(
                     player_id = player_id.0,
+                    session_id = session_id.0,
+                    display_name = %display_name,
                     tick = tick.0,
                     tick_rate = tick_rate,
                     "Connected to server"

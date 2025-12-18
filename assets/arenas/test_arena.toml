@@ -5,6 +5,7 @@
 name = "Test Arena"
 version = "0.1.0"
 size = [64, 32, 64]
+game_mode = "tdm"
 
 # Team 0 spawn points (near origin corner)
 [[spawn_points]]

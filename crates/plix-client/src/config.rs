@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use tracing::{info, warn};
 
+use crate::ui_cef::CefConfig;
+
 /// All rebindable player actions
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Action {
@@ -380,6 +382,10 @@ pub struct GameConfig {
 
     /// Key bindings for all rebindable actions
     pub keybinds: Keybinds,
+
+    /// CEF UI configuration (Feature 030)
+    #[serde(default)]
+    pub ui: CefConfig,
 }
 
 impl Default for GameConfig {
@@ -390,6 +396,7 @@ impl Default for GameConfig {
             fullscreen: false,
             audio_muted: false,
             keybinds: Keybinds::default(),
+            ui: CefConfig::default(),
         }
     }
 }
@@ -400,6 +407,7 @@ impl GameConfig {
         self.sensitivity = self.sensitivity.clamp(SENSITIVITY_MIN, SENSITIVITY_MAX);
         self.fov_degrees = self.fov_degrees.clamp(FOV_MIN, FOV_MAX);
         self.keybinds.ensure_all_actions_bound();
+        self.ui.validate();
     }
 }
 
@@ -527,5 +535,53 @@ mod tests {
         let keybinds = Keybinds::default();
         assert_eq!(keybinds.action_for_key(Key::W), Some(Action::Forward));
         assert_eq!(keybinds.action_for_key(Key::Space), Some(Action::Jump));
+    }
+
+    #[test]
+    fn test_ui_config_defaults() {
+        let config = GameConfig::default();
+        assert!(config.ui.enabled);
+        assert!(!config.ui.devtools);
+        assert_eq!(config.ui.initial_page, "index.html");
+        assert_eq!(config.ui.frame_rate, 60);
+    }
+
+    #[test]
+    fn test_ui_config_validates() {
+        let mut config = GameConfig::default();
+        config.ui.frame_rate = 200; // Too high
+        config.ui.initial_page = "../secret.html".to_string(); // Path traversal
+        config.validate();
+        assert_eq!(config.ui.frame_rate, 120); // Clamped to max
+        assert_eq!(config.ui.initial_page, "index.html"); // Reset to default
+    }
+
+    #[test]
+    fn test_ui_config_serde() {
+        let config = GameConfig::default();
+        let toml_str = toml::to_string(&config).unwrap();
+        // Should contain [ui] section
+        assert!(toml_str.contains("[ui]"));
+        // Should roundtrip
+        let parsed: GameConfig = toml::from_str(&toml_str).unwrap();
+        assert_eq!(parsed.ui.enabled, config.ui.enabled);
+        assert_eq!(parsed.ui.frame_rate, config.ui.frame_rate);
+    }
+
+    #[test]
+    fn test_config_without_ui_section_uses_defaults() {
+        // Config without [ui] section should use defaults (backward compatible)
+        let toml_str = r#"
+sensitivity = 0.003
+fov_degrees = 70.0
+fullscreen = false
+audio_muted = false
+
+[keybinds.bindings]
+Forward = "W"
+"#;
+        let config: GameConfig = toml::from_str(toml_str).unwrap();
+        assert!(config.ui.enabled); // Default
+        assert_eq!(config.ui.frame_rate, 60); // Default
     }
 }

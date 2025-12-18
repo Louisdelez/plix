@@ -1,6 +1,7 @@
 # Rust / Cargo
 target/
-Cargo.lock
+# NOTE: Cargo.lock is committed for reproducible builds (Feature 028)
+# Do NOT add Cargo.lock to .gitignore
 **/*.rs.bk
 *.pdb
 

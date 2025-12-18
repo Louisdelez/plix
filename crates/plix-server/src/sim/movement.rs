@@ -352,6 +352,7 @@ mod tests {
                     name: "Test".to_string(),
                     version: "1.0".to_string(),
                     size: [64, 32, 64],
+                    game_mode: plix_common::types::GameMode::Tdm,
                 },
                 spawn_points: vec![],
                 blocks: BlockDefinitions {
@@ -359,6 +360,10 @@ mod tests {
                     walls: None,
                     regions: vec![],
                 },
+                flag_zones: vec![],
+                br_lite: None,
+                training: None,
+                economy: None,
             },
             blocks: vec![],
         }

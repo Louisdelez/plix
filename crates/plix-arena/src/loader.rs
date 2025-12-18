@@ -140,6 +140,7 @@ fn generate_blocks(arena: &Arena) -> Result<Vec<BlockType>, LoadError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use plix_common::types::GameMode;
     use std::io::Write;
     use tempfile::NamedTempFile;
 
@@ -166,6 +167,35 @@ rotation = 180.0
 [blocks]
 floor = {{ y = 0, block = "stone" }}
 walls = {{ border = true, height = 4, block = "brick" }}
+"#
+        )
+        .unwrap();
+        file
+    }
+
+    fn create_ffa_arena() -> NamedTempFile {
+        let mut file = NamedTempFile::new().unwrap();
+        write!(
+            file,
+            r#"
+[metadata]
+name = "FFA Arena"
+version = "1.0.0"
+size = [16, 8, 16]
+game_mode = "ffa"
+
+[[spawn_points]]
+team = 0
+position = [4.0, 1.0, 4.0]
+rotation = 0.0
+
+[[spawn_points]]
+team = 0
+position = [12.0, 1.0, 12.0]
+rotation = 180.0
+
+[blocks]
+floor = {{ y = 0, block = "stone" }}
 "#
         )
         .unwrap();
@@ -202,5 +232,23 @@ walls = {{ border = true, height = 4, block = "brick" }}
         assert_eq!(arena.get_block(0, 0, 0), BlockType::BRICK);
         assert_eq!(arena.get_block(0, 1, 5), BlockType::BRICK);
         assert_eq!(arena.get_block(15, 1, 5), BlockType::BRICK);
+    }
+
+    #[test]
+    fn test_arena_with_ffa_game_mode_loads_correctly() {
+        let file = create_ffa_arena();
+        let arena = load_arena(file.path()).unwrap();
+
+        assert_eq!(arena.definition.metadata.name, "FFA Arena");
+        assert_eq!(arena.definition.metadata.game_mode, GameMode::Ffa);
+    }
+
+    #[test]
+    fn test_arena_without_game_mode_defaults_to_tdm() {
+        let file = create_test_arena();
+        let arena = load_arena(file.path()).unwrap();
+
+        // Arena without game_mode field should default to TDM
+        assert_eq!(arena.definition.metadata.game_mode, GameMode::Tdm);
     }
 }
