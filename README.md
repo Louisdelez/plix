@@ -1,13 +1,29 @@
-# Plix - Multiplayer Voxel Game Platform
+# Plix
 
-Plix is a multiplayer voxel game platform built in Rust with an authoritative server architecture supporting 8-16 players per match.
+**Multiplayer Voxel Game Platform**
 
-## Prerequisites
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/Rust-1.83%2B-orange.svg)](https://www.rust-lang.org/)
 
-- Rust 1.75+ (stable)
-- Cargo
+Plix is an open-source multiplayer voxel game platform built in Rust. It features a server-authoritative architecture, full modding support, and cross-platform compatibility.
+
+## Features
+
+- **Multiplayer**: 8-16 players per server with low-latency networking
+- **Voxel World**: Procedural terrain generation with chunked streaming
+- **Combat System**: Melee and ranged weapons with server-authoritative hit detection
+- **Game Modes**: TDM, FFA, CTF, Battle Royale, and Training modes
+- **Quest System**: NPCs, dialogues, and campaign progression
+- **Modding**: WASM-sandboxed mod runtime with stable API
+- **Accessibility**: High contrast mode, colorblind filters, custom keybinds
+- **Cross-Platform**: Windows, Linux, and macOS support
 
 ## Quick Start
+
+### Prerequisites
+
+- Rust 1.83+ (stable)
+- Cargo
 
 ### Build
 
@@ -18,70 +34,87 @@ cargo build --release
 ### Run Server
 
 ```bash
-cargo run --release --bin plix-server -- --port 7777 --arena test_arena
+./target/release/plix-server --port 7777
 ```
-
-Options:
-- `--port <PORT>`: UDP port (default: 7777)
-- `--tickrate <RATE>`: Server tick rate 20-60 Hz (default: 60)
-- `--max-players <N>`: Max players (default: 16)
-- `--arena <NAME>`: Arena name from assets/arenas/ (default: test_arena)
-- `--log-level <LEVEL>`: Log level: trace, debug, info, warn, error (default: info)
 
 ### Run Client
 
 ```bash
-cargo run --release --bin plix-client -- --server 127.0.0.1:7777 --name Player1
+./target/release/plix-client --server 127.0.0.1:7777 --name Player1
 ```
 
-Options:
-- `--server <IP:PORT>`: Server address
-- `--name <NAME>`: Player name
-- `--headless`: Run without graphics (for testing)
-- `--log-level <LEVEL>`: Log level
+## Downloads
 
-### Run Tests
+Pre-built binaries are available on the [Releases](https://github.com/Louisdelez/plix/releases) page.
 
+Verify downloads with SHA-256 checksums:
 ```bash
-cargo test --workspace
+sha256sum -c SHA256SUMS --ignore-missing
 ```
 
-### Load Testing
+## Documentation
 
-```bash
-# Run 8 bots for 60 seconds
-./scripts/run_load_test.sh 8 60 127.0.0.1:7777
-
-# Or directly with plix-tools
-cargo run --release --bin plix-tools -- bot --server 127.0.0.1:7777 --count 8 --duration 60
-```
+| Guide | Description |
+|-------|-------------|
+| [Installation](docs/user/installation.md) | How to install and run Plix |
+| [Getting Started](docs/user/getting-started.md) | First steps and tutorial |
+| [Server Setup](docs/server/headless-deploy.md) | Running a dedicated server |
+| [Modding SDK](docs/modding/sdk-v1.md) | Creating mods for Plix |
+| [Roadmap](docs/roadmap.md) | Future development plans |
 
 ## Project Structure
 
 ```
 crates/
-  plix-common/   # Shared types, protocol, math
-  plix-net/      # UDP transport, reliable channels
-  plix-server/   # Authoritative game server
-  plix-client/   # Game client with prediction
-  plix-arena/    # Arena loading and validation
-  plix-tools/    # Bot client and load testing
+  plix-client/          # Game client with CEF UI
+  plix-server/          # Authoritative game server
+  plix-common/          # Shared types, protocol, content
+  plix-tools/           # CLI tools and utilities
+  plix-mod-core/        # Mod API definitions
+  plix-mod-runtime-wasm/# WASM sandbox for mods
+  plix-mod-sdk/         # SDK for mod developers
+  plix-mod-cli/         # Mod development CLI
 ```
 
 ## Architecture
 
-- **Authoritative Server**: All game state runs on server
-- **Client Prediction**: Local player movement predicted client-side
-- **Server Reconciliation**: Corrections applied on misprediction
-- **Remote Interpolation**: Other players smoothly interpolated
-- **60 Hz Tick Rate**: Server runs at 60 ticks/second
+- **Server-Authoritative**: All game state validated on server
+- **Client Prediction**: Responsive local movement with reconciliation
+- **60 Hz Tick Rate**: Smooth gameplay at 60 updates/second
+- **WASM Sandbox**: Mods run in isolated WebAssembly environment
+- **CEF UI**: Modern HTML/CSS/JS user interface
 
-## Documentation
+## Contributing
 
-- [Architecture](docs/architecture.md) - System architecture
-- [Protocol](docs/protocol.md) - Network protocol specification
-- [Testing](docs/testing.md) - Test procedures
+We welcome contributions! Please read:
+
+- [Contributing Guide](CONTRIBUTING.md) - How to contribute
+- [Code of Conduct](CODE_OF_CONDUCT.md) - Community guidelines
+- [Security Policy](SECURITY.md) - Reporting vulnerabilities
+
+### Development
+
+```bash
+# Run tests
+cargo test --workspace
+
+# Check formatting
+cargo fmt --all -- --check
+
+# Run linter
+cargo clippy --all-targets
+```
+
+## Community
+
+- **Issues**: [GitHub Issues](https://github.com/Louisdelez/plix/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Louisdelez/plix/discussions)
+- **Security**: security@plix.dev
 
 ## License
 
-See LICENSE file for details.
+Plix is licensed under the [MIT License](LICENSE).
+
+---
+
+Built with Rust and wgpu
