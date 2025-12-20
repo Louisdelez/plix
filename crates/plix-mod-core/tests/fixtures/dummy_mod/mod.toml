@@ -1,0 +1,17 @@
+id = "dummy-mod"
+name = "Dummy Test Mod"
+version = "1.0.0"
+author = "Test Suite"
+api_version = 1
+
+[capabilities]
+world_read = true
+world_write = true
+entity_read = true
+entity_write = true
+net_send = true
+event_cancel_chat = true
+event_cancel_blocks = false
+
+[entrypoints]
+server = "on_load"

@@ -1,0 +1,10 @@
+id = "{{mod_id}}"
+name = "{{mod_name}}"
+version = "0.1.0"
+api_version = 1
+author = "{{author}}"
+description = "A world query mod for Plix - demonstrates block reading and raycasting"
+
+[capabilities]
+world_read = true
+entity_read = true

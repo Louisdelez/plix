@@ -1,0 +1,33 @@
+# Quest: Clear the Rats
+# Combat introduction quest
+
+quest_id = "clear_rats"
+title = "Pest Control"
+description_short = "Clear the cave rats from the mine entrance"
+description_long = """
+Elder Theron tells you that cave rats have overrun the old mine entrance,
+preventing the villagers from investigating the strange noises deeper within.
+Clear them out so the investigation can proceed.
+
+These aren't ordinary rats - something has agitated them. Be careful.
+"""
+chapter_id = "the_broken_gate"
+repeatable = false
+
+[prerequisites]
+completed_quests = ["tutorial_elder"]
+
+[[steps]]
+type = "KillMob"
+mob_id = "cave_rat"
+count = 5
+description = "Defeat 5 Cave Rats in the mine entrance"
+
+[[steps]]
+type = "TalkToNpc"
+npc_id = "village_elder"
+description = "Report back to Elder Theron"
+
+[rewards]
+xp = 100
+currency = 50

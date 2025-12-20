@@ -1,0 +1,9 @@
+# Minimal mod manifest for testing
+[mod]
+id = "minimal-mod"
+name = "Minimal Test Mod"
+version = "0.1.0"
+api_version = 1
+
+[capabilities]
+# No capabilities requested - this is a minimal test mod

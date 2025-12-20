@@ -9,13 +9,19 @@ members = [
     "crates/plix-tools",
     "crates/plix-master",
     "crates/plix-launcher",
+    "crates/plix-mod-core",
+    "crates/plix-mod-runtime-wasm",
+    "crates/plix-mod-distribution",
+    "crates/plix-mod-sdk",
+    "crates/plix-mod-cli",
+    "crates/plix-mod-sdk-macros",
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 rust-version = "1.83"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 repository = "https://github.com/your-org/plix"
 
 [workspace.dependencies]
@@ -49,6 +55,7 @@ clap = { version = "4.0", features = ["derive", "env"] }
 rand = "0.8"
 tempfile = "3.14"
 serde_json = "1.0"
+chrono = { version = "0.4", default-features = false, features = ["std", "serde"] }
 
 # Utilities
 once_cell = "1.19"
@@ -71,6 +78,18 @@ plix-arena = { path = "crates/plix-arena" }
 plix-tools = { path = "crates/plix-tools" }
 plix-master = { path = "crates/plix-master" }
 plix-launcher = { path = "crates/plix-launcher" }
+plix-mod-core = { path = "crates/plix-mod-core" }
+plix-mod-runtime-wasm = { path = "crates/plix-mod-runtime-wasm" }
+plix-mod-distribution = { path = "crates/plix-mod-distribution" }
+plix-mod-sdk = { path = "crates/plix-mod-sdk" }
+plix-mod-cli = { path = "crates/plix-mod-cli" }
+plix-mod-sdk-macros = { path = "crates/plix-mod-sdk-macros" }
+
+# Mod API dependencies
+bitflags = "2.4"
+
+# Build info embedding
+shadow-rs = "0.32"
 
 [profile.release]
 lto = true

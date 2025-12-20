@@ -1,0 +1,83 @@
+# Spawn Points: Overworld
+# Mob spawn points for the mine and surrounding areas
+
+# Region-based mob limits to prevent overcrowding
+[region_limits]
+mine_entrance = 8
+mine_depths = 10
+ritual_chamber = 6
+
+# Mine entrance - cave rats
+[[spawns]]
+spawn_id = "mine_rats_1"
+mob_id = "cave_rat"
+count = 3
+respawn_secs = 60.0
+radius = 5.0
+position = [100.0, 10.0, 50.0]
+region_id = "mine_entrance"
+
+[[spawns]]
+spawn_id = "mine_rats_2"
+mob_id = "cave_rat"
+count = 2
+respawn_secs = 60.0
+radius = 4.0
+position = [110.0, 10.0, 55.0]
+region_id = "mine_entrance"
+
+[[spawns]]
+spawn_id = "mine_rats_3"
+mob_id = "cave_rat"
+count = 3
+respawn_secs = 60.0
+radius = 5.0
+position = [120.0, 8.0, 45.0]
+region_id = "mine_entrance"
+
+# Mine depths - cultists and some rats
+[[spawns]]
+spawn_id = "mine_depths_cultist_1"
+mob_id = "cultist"
+count = 2
+respawn_secs = 120.0
+radius = 4.0
+position = [150.0, 5.0, 100.0]
+region_id = "mine_depths"
+
+[[spawns]]
+spawn_id = "mine_depths_cultist_2"
+mob_id = "cultist"
+count = 2
+respawn_secs = 120.0
+radius = 4.0
+position = [160.0, 5.0, 110.0]
+region_id = "mine_depths"
+
+[[spawns]]
+spawn_id = "mine_depths_rats"
+mob_id = "cave_rat"
+count = 2
+respawn_secs = 90.0
+radius = 3.0
+position = [155.0, 5.0, 95.0]
+region_id = "mine_depths"
+
+# Ritual chamber - cultists guarding the ritual site
+[[spawns]]
+spawn_id = "ritual_cultist_1"
+mob_id = "cultist"
+count = 2
+respawn_secs = 180.0
+radius = 3.0
+position = [200.0, 3.0, 150.0]
+region_id = "ritual_chamber"
+
+[[spawns]]
+spawn_id = "ritual_cultist_2"
+mob_id = "cultist"
+count = 2
+respawn_secs = 180.0
+radius = 3.0
+position = [210.0, 3.0, 155.0]
+region_id = "ritual_chamber"

@@ -1,0 +1,403 @@
+/* Accessibility Styles - Feature 042 */
+
+/* =================================================================
+   HIGH CONTRAST MODE
+   Activated via .high-contrast class on root element
+   ================================================================= */
+
+.high-contrast {
+  --border-color: #ffffff;
+  --text-color: #ffffff;
+  --bg-opacity: 0.95;
+}
+
+.high-contrast * {
+  border-color: var(--border-color, #ffffff) !important;
+}
+
+.high-contrast button,
+.high-contrast .panel,
+.high-contrast .modal,
+.high-contrast .menu-item,
+.high-contrast input,
+.high-contrast select {
+  border: 2px solid #ffffff !important;
+  background-color: rgba(0, 0, 0, 0.95) !important;
+  color: #ffffff !important;
+}
+
+.high-contrast a,
+.high-contrast label,
+.high-contrast span,
+.high-contrast p,
+.high-contrast h1,
+.high-contrast h2,
+.high-contrast h3,
+.high-contrast h4 {
+  color: #ffffff !important;
+  text-shadow: 1px 1px 2px #000000;
+}
+
+.high-contrast button:hover,
+.high-contrast .menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.high-contrast button:focus,
+.high-contrast input:focus,
+.high-contrast select:focus {
+  outline: 3px solid #ffff00 !important;
+  outline-offset: 2px;
+}
+
+/* =================================================================
+   COLORBLIND FILTERS
+   Applied via SVG filters referenced from colorblind-filters.svg
+   ================================================================= */
+
+.colorblind-protanopia {
+  filter: url('colorblind-filters.svg#protanopia');
+}
+
+.colorblind-deuteranopia {
+  filter: url('colorblind-filters.svg#deuteranopia');
+}
+
+.colorblind-tritanopia {
+  filter: url('colorblind-filters.svg#tritanopia');
+}
+
+/* =================================================================
+   UI SCALE
+   Applied via CSS custom property --ui-scale (default: 1)
+   ================================================================= */
+
+:root {
+  --ui-scale: 1;
+}
+
+.ui-scalable {
+  transform: scale(var(--ui-scale));
+  transform-origin: center center;
+}
+
+/* Scale the entire UI container */
+#app,
+.app-container {
+  transform: scale(var(--ui-scale));
+  transform-origin: top left;
+}
+
+/* =================================================================
+   SUBTITLE OVERLAY
+   Positioned at bottom of screen, above HUD
+   ================================================================= */
+
+.subtitle-overlay {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 80%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.subtitle-entry {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-family: sans-serif;
+  text-align: center;
+  animation: subtitle-fade-in 0.2s ease-out;
+}
+
+.subtitle-entry.fade-out {
+  animation: subtitle-fade-out 0.3s ease-in forwards;
+}
+
+@keyframes subtitle-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes subtitle-fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+/* Subtitle sizes */
+.subtitle-entry.size-small {
+  font-size: 12px;
+}
+
+.subtitle-entry.size-medium {
+  font-size: 16px;
+}
+
+.subtitle-entry.size-large {
+  font-size: 20px;
+}
+
+/* Subtitle background - opacity controlled via inline style */
+.subtitle-entry {
+  background-color: rgba(0, 0, 0, var(--subtitle-bg-opacity, 0.75));
+  color: #ffffff;
+}
+
+/* =================================================================
+   KEYBIND CAPTURE UI
+   Styles for the keybind rebinding interface
+   ================================================================= */
+
+.keybind-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.keybind-row:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.keybind-action {
+  font-weight: 500;
+}
+
+.keybind-key {
+  padding: 6px 12px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+  min-width: 80px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.keybind-key:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.keybind-key.listening {
+  background-color: rgba(255, 200, 0, 0.3);
+  border-color: #ffcc00;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 200, 0, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(255, 200, 0, 0);
+  }
+}
+
+.keybind-key.conflict {
+  background-color: rgba(255, 50, 50, 0.3);
+  border-color: #ff3232;
+}
+
+/* Keybind conflict modal */
+.keybind-conflict-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(30, 30, 30, 0.98);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 24px;
+  z-index: 2000;
+  min-width: 300px;
+  text-align: center;
+}
+
+.keybind-conflict-modal h3 {
+  margin: 0 0 16px 0;
+  color: #ffcc00;
+}
+
+.keybind-conflict-modal p {
+  margin: 0 0 20px 0;
+  color: #ffffff;
+}
+
+.keybind-conflict-modal .actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.keybind-conflict-modal button {
+  padding: 8px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.keybind-conflict-modal button.swap {
+  background-color: #4CAF50;
+  border: none;
+  color: white;
+}
+
+.keybind-conflict-modal button.swap:hover {
+  background-color: #45a049;
+}
+
+.keybind-conflict-modal button.cancel {
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.keybind-conflict-modal button.cancel:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* =================================================================
+   ACCESSIBILITY SETTINGS PANEL
+   Styles for accessibility options in settings
+   ================================================================= */
+
+.accessibility-section {
+  margin-bottom: 24px;
+}
+
+.accessibility-section h4 {
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+}
+
+.setting-row label {
+  flex: 1;
+}
+
+.setting-row .control {
+  min-width: 150px;
+  text-align: right;
+}
+
+/* Slider styling */
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.slider-container input[type="range"] {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+}
+
+.slider-container input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #4CAF50;
+  cursor: pointer;
+}
+
+.slider-container .value {
+  min-width: 45px;
+  text-align: right;
+  font-family: monospace;
+}
+
+/* Toggle switch */
+.toggle-switch {
+  position: relative;
+  width: 50px;
+  height: 26px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-switch .slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 26px;
+  transition: 0.3s;
+}
+
+.toggle-switch .slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+
+.toggle-switch input:checked + .slider {
+  background-color: #4CAF50;
+}
+
+.toggle-switch input:checked + .slider:before {
+  transform: translateX(24px);
+}
+
+/* Dropdown select */
+.accessibility-select {
+  padding: 8px 12px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  min-width: 180px;
+}
+
+.accessibility-select:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.accessibility-select option {
+  background-color: #1e1e1e;
+  color: white;
+}

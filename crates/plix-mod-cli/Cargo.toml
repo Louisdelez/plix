@@ -1,0 +1,49 @@
+[package]
+name = "plix-mod-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Plix mod CLI - tools for mod development (new, build, pack, validate, install)"
+keywords = ["plix", "modding", "cli", "wasm"]
+categories = ["command-line-utilities", "game-development"]
+
+[[bin]]
+name = "plix-mod"
+path = "src/main.rs"
+
+[dependencies]
+# CLI framework
+clap = { workspace = true }
+
+# File system
+walkdir = "2.4"
+tempfile = { workspace = true }
+
+# Compression (deterministic ZIP)
+zip = { version = "2.2", default-features = false, features = ["deflate"] }
+
+# Hashing
+sha2 = "0.10"
+
+# Serialization (for mod.toml parsing)
+toml = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# WASM inspection
+wasmparser = "0.219"
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = "1.0"
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Platform paths
+dirs-next = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

@@ -1,0 +1,68 @@
+# Dungeon: Crypt of the Gate
+# Chapter 1 boss dungeon
+
+dungeon_id = "crypt_of_the_gate"
+display_name = "Crypt of the Gate"
+difficulty = 5
+entry_location = [300.0, 5.0, 200.0]
+boss_mob_id = "gate_warden"
+boss_spawn_position = [375.0, 1.0, 275.0]
+reward_loot_table = "gate_warden_drops"
+boss_respawn_secs = 900.0  # 15 minutes
+
+# Room definitions
+[[rooms]]
+room_id = "entrance"
+name = "Entrance Hall"
+
+[rooms.bounds]
+min = [300.0, 0.0, 200.0]
+max = [320.0, 10.0, 220.0]
+
+# No spawns in entrance - safe zone
+
+[[rooms]]
+room_id = "corridor"
+name = "The Descent"
+
+[rooms.bounds]
+min = [320.0, 0.0, 210.0]
+max = [350.0, 8.0, 230.0]
+
+# Minor enemies in corridor
+[[rooms.spawns]]
+spawn_id = "crypt_corridor_cultists"
+mob_id = "cultist"
+count = 2
+respawn_secs = 0.0  # No respawn in dungeon
+radius = 3.0
+position = [335.0, 1.0, 220.0]
+region_id = "crypt_of_the_gate"
+
+[[rooms]]
+room_id = "antechamber"
+name = "The Antechamber"
+
+[rooms.bounds]
+min = [350.0, 0.0, 230.0]
+max = [380.0, 12.0, 260.0]
+
+# More cultists guarding the boss
+[[rooms.spawns]]
+spawn_id = "crypt_antechamber_cultists"
+mob_id = "cultist"
+count = 3
+respawn_secs = 0.0
+radius = 5.0
+position = [365.0, 1.0, 245.0]
+region_id = "crypt_of_the_gate"
+
+[[rooms]]
+room_id = "boss_room"
+name = "The Gate Chamber"
+
+[rooms.bounds]
+min = [350.0, 0.0, 260.0]
+max = [400.0, 20.0, 300.0]
+
+# Boss spawns separately (not as room spawn)

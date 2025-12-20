@@ -1,0 +1,34 @@
+[package]
+name = "plix-mod-sdk"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Plix mod SDK - ergonomic API for WASM mod development"
+keywords = ["plix", "modding", "wasm", "sdk"]
+categories = ["game-development", "wasm"]
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+# Math types
+glam = { workspace = true }
+
+# Serialization (must match runtime)
+bincode = { workspace = true }
+serde = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+
+# Re-export macros (optional, added when macros crate exists)
+# plix-mod-sdk-macros = { path = "../plix-mod-sdk-macros", optional = true }
+
+[dev-dependencies]
+# For testing codec roundtrips
+serde_json = { workspace = true }
+
+[features]
+default = []
+# macros = ["plix-mod-sdk-macros"]

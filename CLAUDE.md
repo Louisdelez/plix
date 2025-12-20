@@ -48,6 +48,30 @@ Auto-generated from all feature plans. Last updated: 2025-12-14
 - N/A (in-memory state only) (030-cef-ui-shell)
 - Rust 1.75+ (stable channel only per constitution) + HTML5/CSS3/ES6 JavaScript + plix-client (rendering, config, server_browser), plix-common (types, protocol), serde_json (bridge serialization), Feature 030 (CEF shell), Feature 026 (server browser), Feature 025 (account identity) (031-cef-menus)
 - ~/.config/plix/favorites.toml (local file, TOML format, shared with native UI) (031-cef-menus)
+- Rust 1.75+ (stable channel only per constitution) + wgpu (rendering), winit (input), serde_json (bridge serialization), plix-common (types, protocol), plix-client (existing CEF shell, UI) (032-cef-ingame-ui)
+- N/A (in-memory state only - chat history, scoreboard cache) (032-cef-ingame-ui)
+- Rust 1.75+ (stable channel only per constitution) + plix-client (ui_cef module), plix-common (types), CEF (via existing Feature 030 shell), serde_json (bridge serialization), tracing (logging) (033-cef-embeds)
+- N/A (in-memory state only, config persisted via existing TOML config system) (033-cef-embeds)
+- Rust 1.75+ (stable channel only per constitution) + plix-common (types), plix-server (game loop integration), serde + toml (manifest parsing), tracing (logging), glam (math types) (034-mod-api-core)
+- N/A (in-memory state only - mod registry, event subscriptions, timer state) (034-mod-api-core)
+- Rust 1.83+ (stable channel only per constitution) + wasmtime (WASM runtime), plix-mod-core (API/capabilities/events), bincode (ABI serialization) (035-sandboxed-mod-runtime)
+- N/A (in-memory only, mods loaded from filesystem at startup) (035-sandboxed-mod-runtime)
+- File system - `~/.local/share/plix/mods/` for cache, `mods.lock` in server directory (036-mod-distribution)
+- Rust 1.83+ (stable channel only per constitution) + plix-mod-distribution (036), plix-mod-runtime-wasm (035), plix-mod-core (034), bincode, serde, sha2, tokio (037-server-mods)
+- File system - `~/.local/share/plix/mods/payloads/` for client payload cache (037-server-mods)
+- Rust 1.75+ (stable channel only per constitution) + plix-mod-core (034), plix-mod-runtime-wasm (035), plix-mod-distribution (036), clap (CLI), notify (file watching), proc-macro2/quote/syn (macros) (038-tooling-mods)
+- Filesystem only (templates, bundle cache, mod projects) (038-tooling-mods)
+- Rust 1.75+ (stable channel only per constitution) + tokio 1.0 (async), tracing 0.1 (instrumentation), bincode 1.3 (serialization), wgpu 23.0 (rendering) (039-performance-pass)
+- N/A (in-memory metrics, optional JSON report export) (039-performance-pass)
+- Rust 1.75+ (stable channel only per constitution) + plix-common (protocol), plix-server (netloop, mods), plix-mod-distribution (registry), plix-mod-core (manifest), bincode (serialization), cargo-fuzz/libfuzzer (fuzzing) (040-security-pass)
+- N/A (in-memory security state, limits module is compile-time constants) (040-security-pass)
+- Rust 1.83+ (stable channel per constitution, workspace rust-version) + tokio (async), clap (CLI), tracing (logging), wgpu/winit (client), bincode (serialization) (041-cross-platform)
+- Filesystem for bundles, configs, and assets (041-cross-platform)
+- Rust 1.75+ (stable channel only per constitution) + serde, toml (existing), winit (existing key capture), CEF (Feature 030+) (042-accessibility)
+- `~/.config/plix/config.toml` (extends existing GameConfig) (042-accessibility)
+- Rust 1.83 (stable, per workspace `rust-version`) (043-content-lore-campaign)
+- Rust 1.83 (stable, per workspace `rust-version`) + shadow-rs (build info), serde/toml (config), bincode (serialization), sha2 (checksums) (044-1-0-release)
+- File system - configs (~/.config/plix/), saves (~/.local/share/plix/worlds/), backups (adjacent to data) (044-1-0-release)
 
 - Rust 1.75+ (stable channel only per constitution) (002-voxel-game-platform)
 
@@ -67,9 +91,9 @@ cargo test [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECH
 Rust 1.75+ (stable channel only per constitution): Follow standard conventions
 
 ## Recent Changes
-- 031-cef-menus: Added Rust 1.75+ (stable channel only per constitution) + HTML5/CSS3/ES6 JavaScript + plix-client (rendering, config, server_browser), plix-common (types, protocol), serde_json (bridge serialization), Feature 030 (CEF shell), Feature 026 (server browser), Feature 025 (account identity)
-- 031-cef-menus: Added Rust 1.75+ (stable channel only per constitution) + HTML5/CSS3/ES6 JavaScript + plix-client (rendering, config, server_browser), plix-common (types, protocol), serde_json (bridge serialization), Feature 030 (CEF shell), Feature 026 (server browser), Feature 025 (account identity)
-- 030-cef-ui-shell: Added Rust 1.75+ (stable channel only per constitution) + CEF (binding TBD via spike), wgpu, winit, clap, toml/serde
+- 044-1-0-release: Added Rust 1.83 (stable, per workspace `rust-version`) + shadow-rs (build info), serde/toml (config), bincode (serialization), sha2 (checksums)
+- 043-content-lore-campaign: Added Rust 1.83 (stable, per workspace `rust-version`)
+- 042-accessibility: Added Rust 1.75+ (stable channel only per constitution) + serde, toml (existing), winit (existing key capture), CEF (Feature 030+)
 
 
 <!-- MANUAL ADDITIONS START -->

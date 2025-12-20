@@ -4,9 +4,13 @@
 //! Supports identity commands: /name
 //! Supports server browser commands: /servers, /connect
 //! Supports matchmaking commands: /quickjoin, /play, /quickjoin-prefs
+//! Supports accessibility commands: /rebind, /ui_scale, /colorblind, /highcontrast, /subtitles
+//! Supports quest debug commands: /quest (Feature 043)
 
 use plix_common::protocol::ClientMessage;
 
+use crate::accessibility::{ColorblindPreset, UI_SCALE_MAX, UI_SCALE_MIN};
+use crate::config::{Action, Key};
 use crate::matchmaking::request::{VALID_MODES, VALID_REGIONS};
 
 /// Result of parsing a console command
@@ -40,6 +44,48 @@ pub enum CommandResult {
         /// New value for mode/region (None for view)
         value: Option<String>,
     },
+    // === Feature 042: Accessibility commands ===
+    /// Rebind an action to a key
+    RebindAction {
+        action: Action,
+        key: Key,
+    },
+    /// List all keybindings
+    RebindList,
+    /// Reset keybindings to defaults
+    RebindReset,
+    /// Set UI scale percentage
+    SetUiScale(u8),
+    /// Set colorblind preset
+    SetColorblind(ColorblindPreset),
+    /// Toggle high contrast mode
+    SetHighContrast(bool),
+    /// Toggle subtitles
+    SetSubtitles(bool),
+
+    // === Feature 043: Quest debug commands ===
+    /// List active quests
+    QuestList,
+    /// Show quest details
+    QuestInfo { quest_id: String },
+    /// Accept a quest (debug)
+    QuestAccept { quest_id: String },
+    /// Abandon a quest (debug)
+    QuestAbandon { quest_id: String },
+    /// Pin a quest to HUD
+    QuestPin { quest_id: String },
+    /// Unpin the current pinned quest
+    QuestUnpin,
+
+    // === Feature 043: Dungeon debug commands ===
+    /// List available dungeons
+    DungeonList,
+    /// Show dungeon info
+    DungeonInfo { dungeon_id: String },
+    /// Reset dungeon state (debug)
+    DungeonReset { dungeon_id: String },
+    /// Complete dungeon (debug)
+    DungeonComplete { dungeon_id: String },
 }
 
 /// Parse a console input string and return the appropriate action.
@@ -56,6 +102,23 @@ pub enum CommandResult {
 /// - `/quickjoin-prefs` - View matchmaking preferences
 /// - `/quickjoin-prefs mode <value>` - Set preferred mode
 /// - `/quickjoin-prefs region <value>` - Set preferred region
+/// - `/rebind <action> <key>` - Rebind an action to a key
+/// - `/rebind list` - List all keybindings
+/// - `/rebind reset` - Reset keybindings to defaults
+/// - `/ui_scale <75-150>` - Set UI scale percentage
+/// - `/colorblind <preset>` - Set colorblind preset (none, protanopia, deuteranopia, tritanopia)
+/// - `/highcontrast <on|off>` - Toggle high contrast mode
+/// - `/subtitles <on|off>` - Toggle subtitles
+/// - `/quest list` - List active quests (debug)
+/// - `/quest info <id>` - Show quest details (debug)
+/// - `/quest accept <id>` - Accept a quest (debug)
+/// - `/quest abandon <id>` - Abandon a quest (debug)
+/// - `/quest pin <id>` - Pin a quest to HUD
+/// - `/quest unpin` - Unpin the current quest
+/// - `/dungeon list` - List available dungeons (debug)
+/// - `/dungeon info <id>` - Show dungeon info (debug)
+/// - `/dungeon reset <id>` - Reset dungeon state (debug)
+/// - `/dungeon complete <id>` - Complete dungeon (debug)
 ///
 /// Returns `CommandResult` indicating what action to take.
 pub fn parse_command(input: &str) -> CommandResult {
@@ -233,11 +296,307 @@ pub fn parse_command(input: &str) -> CommandResult {
 /quickjoin-prefs           - View matchmaking preferences
 /quickjoin-prefs mode <v>  - Set preferred mode
 /quickjoin-prefs region <v>- Set preferred region
+/rebind <action> <key>     - Rebind an action to a key
+/rebind list               - List all keybindings
+/rebind reset              - Reset keybindings to defaults
+/ui_scale <75-150>         - Set UI scale percentage
+/colorblind <preset>       - Set colorblind mode (none/protanopia/deuteranopia/tritanopia)
+/highcontrast <on|off>     - Toggle high contrast mode
+/subtitles <on|off>        - Toggle subtitles
+/quest list                - List active quests
+/quest info <id>           - Show quest details
+/quest accept <id>         - Accept a quest
+/quest abandon <id>        - Abandon a quest
+/quest pin <id>            - Pin quest to HUD
+/quest unpin               - Unpin current quest
+/dungeon list              - List available dungeons
+/dungeon info <id>         - Show dungeon info
+/dungeon reset <id>        - Reset dungeon state
+/dungeon complete <id>     - Complete dungeon
 /help           - Show this help message"#;
             CommandResult::ClientOnly(help_text.to_string())
         }
 
+        // === Feature 042: Accessibility commands ===
+        "rebind" => {
+            let subcommand = parts.next();
+            match subcommand {
+                Some("list") => CommandResult::RebindList,
+                Some("reset") => CommandResult::RebindReset,
+                Some(action_str) => {
+                    // Parse action
+                    let action = parse_action(action_str);
+                    if action.is_none() {
+                        return CommandResult::InvalidSyntax(format!(
+                            "Unknown action '{}'. Valid actions: {}",
+                            action_str,
+                            action_names().join(", ")
+                        ));
+                    }
+                    let action = action.unwrap();
+
+                    // Parse key
+                    match parts.next() {
+                        Some(key_str) => {
+                            let key = parse_key(key_str);
+                            if key.is_none() {
+                                return CommandResult::InvalidSyntax(format!(
+                                    "Unknown key '{}'. Examples: W, Space, LeftClick, Up",
+                                    key_str
+                                ));
+                            }
+                            CommandResult::RebindAction {
+                                action,
+                                key: key.unwrap(),
+                            }
+                        }
+                        None => CommandResult::InvalidSyntax(
+                            "Usage: /rebind <action> <key> or /rebind list or /rebind reset"
+                                .to_string(),
+                        ),
+                    }
+                }
+                None => CommandResult::InvalidSyntax(
+                    "Usage: /rebind <action> <key> or /rebind list or /rebind reset".to_string(),
+                ),
+            }
+        }
+
+        "ui_scale" => match parts.next() {
+            Some(value_str) => match value_str.parse::<u8>() {
+                Ok(value) if value >= UI_SCALE_MIN && value <= UI_SCALE_MAX => {
+                    CommandResult::SetUiScale(value)
+                }
+                Ok(_) => CommandResult::InvalidSyntax(format!(
+                    "UI scale must be between {} and {}",
+                    UI_SCALE_MIN, UI_SCALE_MAX
+                )),
+                Err(_) => CommandResult::InvalidSyntax("Usage: /ui_scale <75-150>".to_string()),
+            },
+            None => CommandResult::InvalidSyntax("Usage: /ui_scale <75-150>".to_string()),
+        },
+
+        "colorblind" => match parts.next() {
+            Some(preset_str) => match ColorblindPreset::from_str(preset_str) {
+                Some(preset) => CommandResult::SetColorblind(preset),
+                None => CommandResult::InvalidSyntax(
+                    "Invalid preset. Valid: none, protanopia, deuteranopia, tritanopia".to_string(),
+                ),
+            },
+            None => CommandResult::InvalidSyntax(
+                "Usage: /colorblind <preset> (none/protanopia/deuteranopia/tritanopia)".to_string(),
+            ),
+        },
+
+        "highcontrast" => match parts.next() {
+            Some(value) => match value.to_lowercase().as_str() {
+                "on" | "true" | "1" | "yes" => CommandResult::SetHighContrast(true),
+                "off" | "false" | "0" | "no" => CommandResult::SetHighContrast(false),
+                _ => CommandResult::InvalidSyntax("Usage: /highcontrast <on|off>".to_string()),
+            },
+            None => CommandResult::InvalidSyntax("Usage: /highcontrast <on|off>".to_string()),
+        },
+
+        "subtitles" => match parts.next() {
+            Some(value) => match value.to_lowercase().as_str() {
+                "on" | "true" | "1" | "yes" => CommandResult::SetSubtitles(true),
+                "off" | "false" | "0" | "no" => CommandResult::SetSubtitles(false),
+                _ => CommandResult::InvalidSyntax("Usage: /subtitles <on|off>".to_string()),
+            },
+            None => CommandResult::InvalidSyntax("Usage: /subtitles <on|off>".to_string()),
+        },
+
+        // === Feature 043: Quest debug commands ===
+        "quest" => {
+            let subcommand = parts.next();
+            match subcommand {
+                Some("list") | Some("ls") => CommandResult::QuestList,
+                Some("info") | Some("show") => {
+                    match parts.next() {
+                        Some(quest_id) => CommandResult::QuestInfo {
+                            quest_id: quest_id.to_string(),
+                        },
+                        None => CommandResult::InvalidSyntax("Usage: /quest info <quest_id>".to_string()),
+                    }
+                }
+                Some("accept") | Some("start") => {
+                    match parts.next() {
+                        Some(quest_id) => CommandResult::QuestAccept {
+                            quest_id: quest_id.to_string(),
+                        },
+                        None => CommandResult::InvalidSyntax("Usage: /quest accept <quest_id>".to_string()),
+                    }
+                }
+                Some("abandon") | Some("drop") => {
+                    match parts.next() {
+                        Some(quest_id) => CommandResult::QuestAbandon {
+                            quest_id: quest_id.to_string(),
+                        },
+                        None => CommandResult::InvalidSyntax("Usage: /quest abandon <quest_id>".to_string()),
+                    }
+                }
+                Some("pin") | Some("track") => {
+                    match parts.next() {
+                        Some(quest_id) => CommandResult::QuestPin {
+                            quest_id: quest_id.to_string(),
+                        },
+                        None => CommandResult::InvalidSyntax("Usage: /quest pin <quest_id>".to_string()),
+                    }
+                }
+                Some("unpin") | Some("untrack") => CommandResult::QuestUnpin,
+                Some(unknown) => CommandResult::InvalidSyntax(format!(
+                    "Unknown quest subcommand '{}'. Use: list, info, accept, abandon, pin, unpin",
+                    unknown
+                )),
+                None => CommandResult::InvalidSyntax(
+                    "Usage: /quest <list|info|accept|abandon|pin|unpin> [args]".to_string(),
+                ),
+            }
+        }
+
+        // === Feature 043: Dungeon debug commands ===
+        "dungeon" => {
+            let subcommand = parts.next();
+            match subcommand {
+                Some("list") | Some("ls") => CommandResult::DungeonList,
+                Some("info") | Some("show") => {
+                    match parts.next() {
+                        Some(dungeon_id) => CommandResult::DungeonInfo {
+                            dungeon_id: dungeon_id.to_string(),
+                        },
+                        None => CommandResult::InvalidSyntax("Usage: /dungeon info <dungeon_id>".to_string()),
+                    }
+                }
+                Some("reset") => {
+                    match parts.next() {
+                        Some(dungeon_id) => CommandResult::DungeonReset {
+                            dungeon_id: dungeon_id.to_string(),
+                        },
+                        None => CommandResult::InvalidSyntax("Usage: /dungeon reset <dungeon_id>".to_string()),
+                    }
+                }
+                Some("complete") => {
+                    match parts.next() {
+                        Some(dungeon_id) => CommandResult::DungeonComplete {
+                            dungeon_id: dungeon_id.to_string(),
+                        },
+                        None => CommandResult::InvalidSyntax("Usage: /dungeon complete <dungeon_id>".to_string()),
+                    }
+                }
+                Some(unknown) => CommandResult::InvalidSyntax(format!(
+                    "Unknown dungeon subcommand '{}'. Use: list, info, reset, complete",
+                    unknown
+                )),
+                None => CommandResult::InvalidSyntax(
+                    "Usage: /dungeon <list|info|reset|complete> [args]".to_string(),
+                ),
+            }
+        }
+
         _ => CommandResult::UnknownCommand(format!("Unknown command: /{}", command)),
+    }
+}
+
+/// Get list of action names for help text
+fn action_names() -> Vec<&'static str> {
+    Action::all().iter().map(|a| a.display_name()).collect()
+}
+
+/// Parse action from string (case-insensitive)
+fn parse_action(s: &str) -> Option<Action> {
+    let lower = s.to_lowercase();
+    match lower.as_str() {
+        "forward" => Some(Action::Forward),
+        "backward" | "back" => Some(Action::Backward),
+        "left" => Some(Action::Left),
+        "right" => Some(Action::Right),
+        "jump" => Some(Action::Jump),
+        "attack" => Some(Action::Attack),
+        "placeblock" | "place" | "place_block" => Some(Action::PlaceBlock),
+        "removeblock" | "remove" | "remove_block" => Some(Action::RemoveBlock),
+        "pause" | "menu" | "escape" => Some(Action::Pause),
+        "toggledebugoverlay" | "debug" | "debugoverlay" | "toggle_debug_overlay" => {
+            Some(Action::ToggleDebugOverlay)
+        }
+        _ => None,
+    }
+}
+
+/// Parse key from string (case-insensitive)
+fn parse_key(s: &str) -> Option<Key> {
+    let lower = s.to_lowercase();
+    match lower.as_str() {
+        // Letters
+        "a" => Some(Key::A),
+        "b" => Some(Key::B),
+        "c" => Some(Key::C),
+        "d" => Some(Key::D),
+        "e" => Some(Key::E),
+        "f" => Some(Key::F),
+        "g" => Some(Key::G),
+        "h" => Some(Key::H),
+        "i" => Some(Key::I),
+        "j" => Some(Key::J),
+        "k" => Some(Key::K),
+        "l" => Some(Key::L),
+        "m" => Some(Key::M),
+        "n" => Some(Key::N),
+        "o" => Some(Key::O),
+        "p" => Some(Key::P),
+        "q" => Some(Key::Q),
+        "r" => Some(Key::R),
+        "s" => Some(Key::S),
+        "t" => Some(Key::T),
+        "u" => Some(Key::U),
+        "v" => Some(Key::V),
+        "w" => Some(Key::W),
+        "x" => Some(Key::X),
+        "y" => Some(Key::Y),
+        "z" => Some(Key::Z),
+        // Numbers
+        "0" | "key0" => Some(Key::Key0),
+        "1" | "key1" => Some(Key::Key1),
+        "2" | "key2" => Some(Key::Key2),
+        "3" | "key3" => Some(Key::Key3),
+        "4" | "key4" => Some(Key::Key4),
+        "5" | "key5" => Some(Key::Key5),
+        "6" | "key6" => Some(Key::Key6),
+        "7" | "key7" => Some(Key::Key7),
+        "8" | "key8" => Some(Key::Key8),
+        "9" | "key9" => Some(Key::Key9),
+        // Special keys
+        "space" => Some(Key::Space),
+        "escape" | "esc" => Some(Key::Escape),
+        "enter" | "return" => Some(Key::Enter),
+        "tab" => Some(Key::Tab),
+        "backspace" => Some(Key::Backspace),
+        // Modifiers
+        "ctrl" | "control" => Some(Key::Ctrl),
+        "shift" => Some(Key::Shift),
+        "alt" => Some(Key::Alt),
+        // Arrow keys
+        "up" | "arrowup" | "uparrow" => Some(Key::Up),
+        "down" | "arrowdown" | "downarrow" => Some(Key::Down),
+        "left" | "arrowleft" | "leftarrow" => Some(Key::Left),
+        "right" | "arrowright" | "rightarrow" => Some(Key::Right),
+        // Function keys
+        "f1" => Some(Key::F1),
+        "f2" => Some(Key::F2),
+        "f3" => Some(Key::F3),
+        "f4" => Some(Key::F4),
+        "f5" => Some(Key::F5),
+        "f6" => Some(Key::F6),
+        "f7" => Some(Key::F7),
+        "f8" => Some(Key::F8),
+        "f9" => Some(Key::F9),
+        "f10" => Some(Key::F10),
+        "f11" => Some(Key::F11),
+        "f12" => Some(Key::F12),
+        // Mouse buttons
+        "leftclick" | "lmb" | "mouse1" => Some(Key::LeftClick),
+        "rightclick" | "rmb" | "mouse2" => Some(Key::RightClick),
+        "middleclick" | "mmb" | "mouse3" => Some(Key::MiddleClick),
+        _ => None,
     }
 }
 
@@ -686,6 +1045,380 @@ mod tests {
                 assert!(text.contains("/quickjoin"));
                 assert!(text.contains("/play"));
                 assert!(text.contains("/quickjoin-prefs"));
+            }
+            _ => panic!("Expected ClientOnly help text"),
+        }
+    }
+
+    // === Feature 042: Accessibility command tests ===
+
+    #[test]
+    fn test_parse_rebind_action() {
+        match parse_command("/rebind forward up") {
+            CommandResult::RebindAction { action, key } => {
+                assert_eq!(action, Action::Forward);
+                assert_eq!(key, Key::Up);
+            }
+            _ => panic!("Expected RebindAction"),
+        }
+    }
+
+    #[test]
+    fn test_parse_rebind_with_mouse() {
+        match parse_command("/rebind attack leftclick") {
+            CommandResult::RebindAction { action, key } => {
+                assert_eq!(action, Action::Attack);
+                assert_eq!(key, Key::LeftClick);
+            }
+            _ => panic!("Expected RebindAction with mouse"),
+        }
+    }
+
+    #[test]
+    fn test_parse_rebind_list() {
+        match parse_command("/rebind list") {
+            CommandResult::RebindList => {}
+            _ => panic!("Expected RebindList"),
+        }
+    }
+
+    #[test]
+    fn test_parse_rebind_reset() {
+        match parse_command("/rebind reset") {
+            CommandResult::RebindReset => {}
+            _ => panic!("Expected RebindReset"),
+        }
+    }
+
+    #[test]
+    fn test_parse_rebind_invalid_action() {
+        match parse_command("/rebind invalid_action w") {
+            CommandResult::InvalidSyntax(msg) => {
+                assert!(msg.contains("Unknown action"));
+            }
+            _ => panic!("Expected InvalidSyntax for invalid action"),
+        }
+    }
+
+    #[test]
+    fn test_parse_rebind_invalid_key() {
+        match parse_command("/rebind forward invalidkey") {
+            CommandResult::InvalidSyntax(msg) => {
+                assert!(msg.contains("Unknown key"));
+            }
+            _ => panic!("Expected InvalidSyntax for invalid key"),
+        }
+    }
+
+    #[test]
+    fn test_parse_rebind_missing_args() {
+        match parse_command("/rebind") {
+            CommandResult::InvalidSyntax(msg) => {
+                assert!(msg.contains("Usage"));
+            }
+            _ => panic!("Expected InvalidSyntax for missing args"),
+        }
+
+        match parse_command("/rebind forward") {
+            CommandResult::InvalidSyntax(msg) => {
+                assert!(msg.contains("Usage"));
+            }
+            _ => panic!("Expected InvalidSyntax for missing key"),
+        }
+    }
+
+    #[test]
+    fn test_parse_ui_scale() {
+        match parse_command("/ui_scale 100") {
+            CommandResult::SetUiScale(100) => {}
+            _ => panic!("Expected SetUiScale(100)"),
+        }
+
+        match parse_command("/ui_scale 75") {
+            CommandResult::SetUiScale(75) => {}
+            _ => panic!("Expected SetUiScale(75)"),
+        }
+
+        match parse_command("/ui_scale 150") {
+            CommandResult::SetUiScale(150) => {}
+            _ => panic!("Expected SetUiScale(150)"),
+        }
+    }
+
+    #[test]
+    fn test_parse_ui_scale_out_of_range() {
+        match parse_command("/ui_scale 50") {
+            CommandResult::InvalidSyntax(msg) => {
+                assert!(msg.contains("between"));
+            }
+            _ => panic!("Expected InvalidSyntax for value too low"),
+        }
+
+        match parse_command("/ui_scale 200") {
+            CommandResult::InvalidSyntax(msg) => {
+                assert!(msg.contains("between"));
+            }
+            _ => panic!("Expected InvalidSyntax for value too high"),
+        }
+    }
+
+    #[test]
+    fn test_parse_ui_scale_missing_arg() {
+        match parse_command("/ui_scale") {
+            CommandResult::InvalidSyntax(msg) => {
+                assert!(msg.contains("Usage"));
+            }
+            _ => panic!("Expected InvalidSyntax for missing arg"),
+        }
+    }
+
+    #[test]
+    fn test_parse_colorblind() {
+        match parse_command("/colorblind none") {
+            CommandResult::SetColorblind(ColorblindPreset::None) => {}
+            _ => panic!("Expected SetColorblind(None)"),
+        }
+
+        match parse_command("/colorblind protanopia") {
+            CommandResult::SetColorblind(ColorblindPreset::Protanopia) => {}
+            _ => panic!("Expected SetColorblind(Protanopia)"),
+        }
+
+        match parse_command("/colorblind deuteranopia") {
+            CommandResult::SetColorblind(ColorblindPreset::Deuteranopia) => {}
+            _ => panic!("Expected SetColorblind(Deuteranopia)"),
+        }
+
+        match parse_command("/colorblind tritanopia") {
+            CommandResult::SetColorblind(ColorblindPreset::Tritanopia) => {}
+            _ => panic!("Expected SetColorblind(Tritanopia)"),
+        }
+    }
+
+    #[test]
+    fn test_parse_colorblind_case_insensitive() {
+        match parse_command("/COLORBLIND PROTANOPIA") {
+            CommandResult::SetColorblind(ColorblindPreset::Protanopia) => {}
+            _ => panic!("Expected SetColorblind for uppercase"),
+        }
+    }
+
+    #[test]
+    fn test_parse_colorblind_invalid() {
+        match parse_command("/colorblind invalid") {
+            CommandResult::InvalidSyntax(msg) => {
+                assert!(msg.contains("Invalid preset"));
+            }
+            _ => panic!("Expected InvalidSyntax for invalid preset"),
+        }
+    }
+
+    #[test]
+    fn test_parse_highcontrast() {
+        match parse_command("/highcontrast on") {
+            CommandResult::SetHighContrast(true) => {}
+            _ => panic!("Expected SetHighContrast(true)"),
+        }
+
+        match parse_command("/highcontrast off") {
+            CommandResult::SetHighContrast(false) => {}
+            _ => panic!("Expected SetHighContrast(false)"),
+        }
+
+        match parse_command("/highcontrast true") {
+            CommandResult::SetHighContrast(true) => {}
+            _ => panic!("Expected SetHighContrast(true) for 'true'"),
+        }
+
+        match parse_command("/highcontrast false") {
+            CommandResult::SetHighContrast(false) => {}
+            _ => panic!("Expected SetHighContrast(false) for 'false'"),
+        }
+    }
+
+    #[test]
+    fn test_parse_highcontrast_invalid() {
+        match parse_command("/highcontrast maybe") {
+            CommandResult::InvalidSyntax(msg) => {
+                assert!(msg.contains("Usage"));
+            }
+            _ => panic!("Expected InvalidSyntax for invalid value"),
+        }
+    }
+
+    #[test]
+    fn test_parse_subtitles() {
+        match parse_command("/subtitles on") {
+            CommandResult::SetSubtitles(true) => {}
+            _ => panic!("Expected SetSubtitles(true)"),
+        }
+
+        match parse_command("/subtitles off") {
+            CommandResult::SetSubtitles(false) => {}
+            _ => panic!("Expected SetSubtitles(false)"),
+        }
+    }
+
+    #[test]
+    fn test_parse_subtitles_invalid() {
+        match parse_command("/subtitles maybe") {
+            CommandResult::InvalidSyntax(msg) => {
+                assert!(msg.contains("Usage"));
+            }
+            _ => panic!("Expected InvalidSyntax for invalid value"),
+        }
+    }
+
+    #[test]
+    fn test_help_includes_accessibility_commands() {
+        match parse_command("/help") {
+            CommandResult::ClientOnly(text) => {
+                assert!(text.contains("/rebind"));
+                assert!(text.contains("/ui_scale"));
+                assert!(text.contains("/colorblind"));
+                assert!(text.contains("/highcontrast"));
+                assert!(text.contains("/subtitles"));
+            }
+            _ => panic!("Expected ClientOnly help text"),
+        }
+    }
+
+    // === Feature 043: Quest command tests ===
+
+    #[test]
+    fn test_parse_quest_list() {
+        match parse_command("/quest list") {
+            CommandResult::QuestList => {}
+            _ => panic!("Expected QuestList"),
+        }
+
+        match parse_command("/quest ls") {
+            CommandResult::QuestList => {}
+            _ => panic!("Expected QuestList for ls alias"),
+        }
+    }
+
+    #[test]
+    fn test_parse_quest_info() {
+        match parse_command("/quest info test_quest") {
+            CommandResult::QuestInfo { quest_id } => {
+                assert_eq!(quest_id, "test_quest");
+            }
+            _ => panic!("Expected QuestInfo"),
+        }
+
+        match parse_command("/quest show another_quest") {
+            CommandResult::QuestInfo { quest_id } => {
+                assert_eq!(quest_id, "another_quest");
+            }
+            _ => panic!("Expected QuestInfo for show alias"),
+        }
+    }
+
+    #[test]
+    fn test_parse_quest_info_missing_id() {
+        match parse_command("/quest info") {
+            CommandResult::InvalidSyntax(msg) => {
+                assert!(msg.contains("Usage"));
+            }
+            _ => panic!("Expected InvalidSyntax for missing quest_id"),
+        }
+    }
+
+    #[test]
+    fn test_parse_quest_accept() {
+        match parse_command("/quest accept main_story_1") {
+            CommandResult::QuestAccept { quest_id } => {
+                assert_eq!(quest_id, "main_story_1");
+            }
+            _ => panic!("Expected QuestAccept"),
+        }
+
+        match parse_command("/quest start side_quest_2") {
+            CommandResult::QuestAccept { quest_id } => {
+                assert_eq!(quest_id, "side_quest_2");
+            }
+            _ => panic!("Expected QuestAccept for start alias"),
+        }
+    }
+
+    #[test]
+    fn test_parse_quest_abandon() {
+        match parse_command("/quest abandon old_quest") {
+            CommandResult::QuestAbandon { quest_id } => {
+                assert_eq!(quest_id, "old_quest");
+            }
+            _ => panic!("Expected QuestAbandon"),
+        }
+
+        match parse_command("/quest drop failed_quest") {
+            CommandResult::QuestAbandon { quest_id } => {
+                assert_eq!(quest_id, "failed_quest");
+            }
+            _ => panic!("Expected QuestAbandon for drop alias"),
+        }
+    }
+
+    #[test]
+    fn test_parse_quest_pin() {
+        match parse_command("/quest pin priority_quest") {
+            CommandResult::QuestPin { quest_id } => {
+                assert_eq!(quest_id, "priority_quest");
+            }
+            _ => panic!("Expected QuestPin"),
+        }
+
+        match parse_command("/quest track tracked_quest") {
+            CommandResult::QuestPin { quest_id } => {
+                assert_eq!(quest_id, "tracked_quest");
+            }
+            _ => panic!("Expected QuestPin for track alias"),
+        }
+    }
+
+    #[test]
+    fn test_parse_quest_unpin() {
+        match parse_command("/quest unpin") {
+            CommandResult::QuestUnpin => {}
+            _ => panic!("Expected QuestUnpin"),
+        }
+
+        match parse_command("/quest untrack") {
+            CommandResult::QuestUnpin => {}
+            _ => panic!("Expected QuestUnpin for untrack alias"),
+        }
+    }
+
+    #[test]
+    fn test_parse_quest_invalid_subcommand() {
+        match parse_command("/quest invalid") {
+            CommandResult::InvalidSyntax(msg) => {
+                assert!(msg.contains("Unknown quest subcommand"));
+            }
+            _ => panic!("Expected InvalidSyntax for invalid subcommand"),
+        }
+    }
+
+    #[test]
+    fn test_parse_quest_missing_subcommand() {
+        match parse_command("/quest") {
+            CommandResult::InvalidSyntax(msg) => {
+                assert!(msg.contains("Usage"));
+            }
+            _ => panic!("Expected InvalidSyntax for missing subcommand"),
+        }
+    }
+
+    #[test]
+    fn test_help_includes_quest_commands() {
+        match parse_command("/help") {
+            CommandResult::ClientOnly(text) => {
+                assert!(text.contains("/quest list"));
+                assert!(text.contains("/quest info"));
+                assert!(text.contains("/quest accept"));
+                assert!(text.contains("/quest abandon"));
+                assert!(text.contains("/quest pin"));
+                assert!(text.contains("/quest unpin"));
             }
             _ => panic!("Expected ClientOnly help text"),
         }

@@ -1,0 +1,111 @@
+# =============================================================================
+# Plix Headless Server Docker Compose
+# Feature 041: Cross-Platform Packaging & Headless Server
+# =============================================================================
+#
+# Quick start:
+#   docker compose -f docker-compose.headless.yml up -d
+#
+# View logs:
+#   docker compose -f docker-compose.headless.yml logs -f
+#
+# Stop:
+#   docker compose -f docker-compose.headless.yml down
+#
+# =============================================================================
+
+version: "3.8"
+
+services:
+  plix-server-headless:
+    image: plix-server-headless:latest
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.headless
+
+    container_name: plix-server-headless
+
+    # Restart policy - restart unless explicitly stopped
+    restart: unless-stopped
+
+    # Network ports
+    ports:
+      # Game traffic (UDP) - contract specifies port 7777
+      - "7777:7777/udp"
+
+    # Volume mounts following contracts/packaging.md
+    volumes:
+      # World data persistence
+      - plix-world:/data/world
+
+      # Mod cache persistence
+      - plix-mods:/data/mods
+
+      # Config mount (read-only for security)
+      - ./config:/config:ro
+
+    # Environment variables
+    environment:
+      # Config file path
+      - PLIX_CONFIG=/config/server.toml
+
+      # Log level (trace, debug, info, warn, error)
+      - PLIX_LOG_LEVEL=info
+
+      # Enable backtraces for debugging (set to 0 in production)
+      - RUST_BACKTRACE=1
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          # Maximum CPU usage
+          cpus: '2'
+          # Maximum memory
+          memory: 2G
+        reservations:
+          # Minimum guaranteed CPU
+          cpus: '0.5'
+          # Minimum guaranteed memory
+          memory: 512M
+
+    # Health check
+    healthcheck:
+      test: ["/app/plix-server-headless", "--help"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        # Maximum log file size
+        max-size: "10m"
+        # Number of log files to keep
+        max-file: "3"
+
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+
+    # Read-only root filesystem (optional, increases security)
+    # Note: Requires writable volumes for /data
+    # read_only: true
+
+# Named volumes for persistence
+volumes:
+  plix-world:
+    name: plix-world-data
+    driver: local
+
+  plix-mods:
+    name: plix-mods-cache
+    driver: local
+
+# Network configuration
+networks:
+  default:
+    name: plix-network
+    driver: bridge

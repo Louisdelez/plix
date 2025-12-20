@@ -1,0 +1,22 @@
+# Mob: Cultist
+# Mid-tier humanoid enemy in the mine depths
+
+mob_id = "cultist"
+display_name = "Dark Cultist"
+loot_table = "cultist_drops"
+xp_reward = 35
+credit_reward = 20
+tags = ["humanoid", "undead"]
+
+[stats]
+hp = 60
+damage = 12
+speed = 3.5
+armor = 2
+aggro_radius = 10.0
+leash_radius = 25.0
+attack_range = 2.0
+attack_cooldown = 1.5
+
+[behavior]
+type = "Aggro"

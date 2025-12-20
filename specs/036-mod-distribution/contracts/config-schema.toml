@@ -1,0 +1,124 @@
+# server_mods.toml - Server Mod Configuration Schema
+#
+# This file documents the expected format for server mod configuration.
+# Place this file in your server's root directory.
+
+# =============================================================================
+# REGISTRIES
+# =============================================================================
+# Configure one or more mod registries. Registries are checked in priority order
+# (lower number = higher priority).
+
+[[registries]]
+name = "official"                              # Registry name (for logging/errors)
+url = "https://mods.plix.dev/index.json"       # HTTP(S) URL to index.json
+priority = 10                                   # Lower = higher priority (default: 100)
+enabled = true                                  # Whether to use this registry (default: true)
+
+[[registries]]
+name = "community"
+url = "https://community-mods.example.com/index.json"
+priority = 50
+
+[[registries]]
+name = "local"
+url = "file:///path/to/local/registry"          # Local registry (file:// URL or absolute path)
+# url = "/path/to/local/registry"               # Alternative: absolute path without file://
+priority = 1                                    # Highest priority - local overrides remote
+
+# =============================================================================
+# REQUIRED MODS
+# =============================================================================
+# Declare mods required by this server with version constraints.
+#
+# Version constraint syntax (SemVer):
+#   "=1.2.3"     - Exact version
+#   "^1.2"       - Compatible with 1.2.x (>=1.2.0, <2.0.0)
+#   "~1.2"       - Patch-level changes (>=1.2.0, <1.3.0)
+#   ">=1.0,<2.0" - Range (comma = AND)
+#   "*"          - Any version
+
+[[mods]]
+id = "core-lib"                                 # Mod ID (lowercase alphanumeric + hyphens)
+version = "^1.0"                                # Version constraint
+# pinned = false                                # Pin to exact resolved version (default: false)
+# optional = false                              # Allow server to start without this mod (default: false)
+
+[[mods]]
+id = "weapons-pack"
+version = "~2.0"
+
+[[mods]]
+id = "custom-gamemode"
+version = "=1.5.3"                              # Exact version pin
+pinned = true                                   # Ignore newer compatible versions
+
+[[mods]]
+id = "optional-addon"
+version = "^1.0"
+optional = true                                 # Server starts even if mod unavailable
+
+# =============================================================================
+# TRUST POLICY
+# =============================================================================
+# Configure signature verification requirements.
+
+[trust]
+require_signature = false                        # Require Ed25519 signatures (default: false)
+
+# If require_signature = true, optionally restrict to specific signing keys:
+# allowed_keys = [
+#     "abc123def456abc1",                        # First 8 bytes of public key (hex)
+#     "fedcba9876543210"
+# ]
+# Empty allowed_keys = accept any valid signature
+
+# =============================================================================
+# DOWNLOAD SETTINGS
+# =============================================================================
+# Configure network behavior for remote registries.
+
+[download]
+connect_timeout_secs = 30                        # TCP connect timeout (default: 30)
+read_timeout_secs = 120                          # HTTP read timeout (default: 120)
+retries = 3                                      # Retry attempts on failure (default: 3)
+max_bundle_size = 52428800                       # Max bundle size in bytes (default: 50 MB)
+
+# =============================================================================
+# CACHE SETTINGS
+# =============================================================================
+# Configure local mod cache directory.
+
+[cache]
+# path = "~/.local/share/plix/mods"             # Cache directory (default: platform-specific)
+# max_size = 0                                  # Max cache size in bytes (0 = unlimited)
+
+# =============================================================================
+# EXAMPLES
+# =============================================================================
+
+# Minimal config (single mod from official registry):
+#
+# [[registries]]
+# name = "official"
+# url = "https://mods.plix.dev/index.json"
+#
+# [[mods]]
+# id = "my-mod"
+# version = "^1.0"
+
+# Offline-only config (local registry only):
+#
+# [[registries]]
+# name = "local"
+# url = "/srv/plix/mods"
+#
+# [[mods]]
+# id = "internal-mod"
+# version = "*"
+
+# High-security config (signatures required):
+#
+# [trust]
+# require_signature = true
+# allowed_keys = ["abc123def456abc1"]

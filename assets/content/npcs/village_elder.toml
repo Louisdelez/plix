@@ -1,0 +1,103 @@
+# NPC: Village Elder
+# Main quest giver for Chapter 1
+
+npc_id = "village_elder"
+name = "Elder Theron"
+position = [50.0, 10.0, 50.0]
+rotation = 0.0
+
+# Quests this NPC can give
+quest_giver = [
+    "tutorial_elder",
+    "clear_rats",
+    "investigate_cultists",
+    "find_crypt",
+    "defeat_warden"
+]
+
+# Default dialogue when no quest is available
+idle_dialogue = [
+    "Greetings, traveler. Welcome to Millbrook.",
+    "The times grow dark... but there is always hope.",
+    "The mine has been abandoned for weeks now. Something must be done.",
+    "Thank you for all you have done for our village."
+]
+
+# Quest offer dialogues
+[quest_offer_dialogue.tutorial_elder]
+offer_lines = [
+    "Ah, a new face! You have the look of an adventurer about you.",
+    "Our village has been troubled lately. Strange noises from the old mine, shadows moving in the night.",
+    "I could use someone with your skills. Would you be willing to help?"
+]
+accept_text = "I'll help however I can"
+decline_text = "Perhaps another time"
+
+[quest_offer_dialogue.clear_rats]
+offer_lines = [
+    "The old mine entrance is overrun with cave rats!",
+    "They've grown bold and aggressive. Something has stirred them up.",
+    "Clear them out so we can investigate further. Be careful - these aren't ordinary vermin."
+]
+accept_text = "I'll handle the rats"
+decline_text = "Not right now"
+
+[quest_offer_dialogue.investigate_cultists]
+offer_lines = [
+    "The miners reported seeing hooded figures deeper in the tunnels.",
+    "These cultists... they're performing some kind of dark ritual.",
+    "You must stop them before they complete whatever evil they're attempting!"
+]
+accept_text = "I'll investigate the cult"
+decline_text = "Give me more time to prepare"
+
+[quest_offer_dialogue.find_crypt]
+offer_lines = [
+    "The ritual chamber you found... it contained markings from the old Gate Wars.",
+    "There must be a hidden passage leading to the crypt where the Gate is sealed.",
+    "Find this entrance. But be cautious - the Warden may have already awakened."
+]
+accept_text = "I'll find the crypt entrance"
+decline_text = "I need to prepare first"
+
+[quest_offer_dialogue.defeat_warden]
+offer_lines = [
+    "The time has come. The Gate Warden must be stopped.",
+    "This ancient guardian was once noble, but centuries of corruption have twisted it.",
+    "Enter the crypt, defeat the Warden, and claim the treasure as proof of your victory.",
+    "May the spirits of the old heroes guide your blade."
+]
+accept_text = "I will defeat the Warden"
+decline_text = "I'm not ready yet"
+
+# Quest completion dialogues
+[quest_complete_dialogue]
+tutorial_elder = [
+    "Excellent! I knew you would be willing to help.",
+    "Here, take this as thanks for your time. We have much work ahead."
+]
+
+clear_rats = [
+    "The rats are cleared? Wonderful news!",
+    "Now we can finally investigate those strange noises.",
+    "But I fear what the miners reported next is far more troubling..."
+]
+
+investigate_cultists = [
+    "Cultists, just as I feared. The old texts spoke of the Gatekeepers...",
+    "They seek to undo the seals placed generations ago.",
+    "You must find where the true danger lies - the old crypt."
+]
+
+find_crypt = [
+    "So the entrance exists... the legends were true.",
+    "The Crypt of the Gate has been sealed since the war.",
+    "Whatever awaits inside, you are Millbrook's only hope."
+]
+
+defeat_warden = [
+    "You've done it! The Gate Warden is defeated!",
+    "The village is saved, and you have proven yourself a true hero.",
+    "But I sense this is not the end. The Warden spoke of other gates...",
+    "Rest now, hero. Your journey has only just begun."
+]

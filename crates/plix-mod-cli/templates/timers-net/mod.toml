@@ -1,0 +1,9 @@
+id = "{{mod_id}}"
+name = "{{mod_name}}"
+version = "0.1.0"
+api_version = 1
+author = "{{author}}"
+description = "A timers and networking mod for Plix - demonstrates timers and message sending"
+
+[capabilities]
+net_send = true

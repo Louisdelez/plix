@@ -1,0 +1,721 @@
+/* Plix In-Game Overlay Styles (Feature 032) */
+
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: transparent;
+    color: #fff;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none; /* Allow click-through by default */
+}
+
+/* ============================================================================
+ * HUD Styles
+ * ============================================================================ */
+
+.hud-container {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 100;
+}
+
+.hp-bar {
+    position: relative;
+    width: 200px;
+    height: 24px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.hp-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #4caf50, #8bc34a);
+    transition: width 0.2s ease-out;
+}
+
+.hp-fill.low {
+    background: linear-gradient(90deg, #f44336, #ff5722);
+}
+
+.hp-fill.medium {
+    background: linear-gradient(90deg, #ff9800, #ffc107);
+}
+
+.hp-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 14px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    z-index: 1;
+}
+
+.stats {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.rtt, .fps {
+    padding: 2px 6px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 2px;
+}
+
+/* ============================================================================
+ * Crosshair Styles
+ * ============================================================================ */
+
+.crosshair {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 50;
+}
+
+.crosshair-h,
+.crosshair-v {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+}
+
+.crosshair-h {
+    width: 12px;
+    height: 2px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.crosshair-v {
+    width: 2px;
+    height: 12px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Gap version (4 rectangles with gap) */
+.crosshair.with-gap .crosshair-h,
+.crosshair.with-gap .crosshair-v {
+    display: none;
+}
+
+.crosshair.with-gap::before,
+.crosshair.with-gap::after {
+    content: '';
+    position: absolute;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Left and right segments */
+.crosshair.with-gap::before {
+    width: 6px;
+    height: 2px;
+    top: 50%;
+    left: -10px;
+    transform: translateY(-50%);
+}
+
+.crosshair.with-gap::after {
+    width: 6px;
+    height: 2px;
+    top: 50%;
+    right: -10px;
+    transform: translateY(-50%);
+}
+
+/* ============================================================================
+ * Chat Styles
+ * ============================================================================ */
+
+.chat-container {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    width: 400px;
+    max-height: 300px;
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+}
+
+.chat-history {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 4px 4px 0 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.chat-history::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat-history::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.chat-message {
+    font-size: 13px;
+    line-height: 1.4;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    animation: message-fade-in 0.2s ease-out;
+}
+
+@keyframes message-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.chat-message .author {
+    font-weight: bold;
+    margin-right: 6px;
+}
+
+.chat-message.player .author {
+    color: #4fc3f7;
+}
+
+.chat-message.system {
+    color: #ffc107;
+    font-style: italic;
+}
+
+.chat-message.system .author {
+    color: #ffc107;
+}
+
+.chat-input-container {
+    background: rgba(0, 0, 0, 0.6);
+    padding: 8px;
+    border-radius: 0 0 4px 4px;
+    pointer-events: auto; /* Allow input interaction */
+}
+
+.chat-input {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    outline: none;
+}
+
+.chat-input:focus {
+    border-color: rgba(79, 195, 247, 0.6);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.chat-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* ============================================================================
+ * Toast Notification Styles
+ * ============================================================================ */
+
+.toast-container {
+    position: fixed;
+    bottom: 340px; /* Above chat */
+    left: 20px;
+    width: 400px;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 8px;
+    z-index: 90;
+}
+
+.toast {
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 4px;
+    font-size: 13px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    animation: toast-in 0.3s ease-out;
+}
+
+.toast.fade-out {
+    animation: toast-out 0.3s ease-in forwards;
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes toast-out {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+}
+
+.toast .author {
+    font-weight: bold;
+    color: #4fc3f7;
+    margin-right: 6px;
+}
+
+/* ============================================================================
+ * Scoreboard Styles
+ * ============================================================================ */
+
+.scoreboard-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 500px;
+    max-width: 700px;
+    max-height: 80vh;
+    background: rgba(0, 0, 0, 0.85);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    z-index: 200;
+    animation: scoreboard-in 0.15s ease-out;
+}
+
+@keyframes scoreboard-in {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.scoreboard-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    text-align: center;
+}
+
+.scoreboard-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.scoreboard-content {
+    padding: 8px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.scoreboard-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.scoreboard-table th,
+.scoreboard-table td {
+    padding: 10px 16px;
+    text-align: left;
+}
+
+.scoreboard-table th {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255, 255, 255, 0.6);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.scoreboard-table td {
+    font-size: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.scoreboard-table tr:hover td {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.scoreboard-table .player-name {
+    font-weight: 500;
+}
+
+.scoreboard-table .team-red .player-name {
+    color: #ef5350;
+}
+
+.scoreboard-table .team-blue .player-name {
+    color: #42a5f5;
+}
+
+/* Numeric columns right-aligned */
+.scoreboard-table td:nth-child(n+2) {
+    text-align: right;
+}
+
+.scoreboard-table th:nth-child(n+2) {
+    text-align: right;
+}
+
+/* ============================================================================
+ * Dungeon HUD Styles (Feature 043)
+ * ============================================================================ */
+
+.dungeon-hud-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 280px;
+    background: rgba(0, 0, 0, 0.75);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    z-index: 100;
+    animation: dungeon-hud-in 0.3s ease-out;
+}
+
+@keyframes dungeon-hud-in {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.dungeon-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dungeon-icon {
+    font-size: 18px;
+}
+
+.dungeon-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffc107;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.dungeon-objective {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 10px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.dungeon-boss-hp {
+    margin-bottom: 8px;
+}
+
+.boss-name {
+    font-size: 12px;
+    color: #ef5350;
+    font-weight: 600;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.boss-hp-bar {
+    position: relative;
+    width: 100%;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid #ef5350;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.boss-hp-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #b71c1c, #ef5350);
+    transition: width 0.3s ease-out;
+}
+
+.boss-hp-text {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    margin-top: 2px;
+}
+
+.dungeon-chest {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: rgba(255, 193, 7, 0.2);
+    border: 1px solid #ffc107;
+    border-radius: 4px;
+    animation: chest-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes chest-pulse {
+    0%, 100% {
+        box-shadow: 0 0 5px rgba(255, 193, 7, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 15px rgba(255, 193, 7, 0.6);
+    }
+}
+
+.chest-icon {
+    font-size: 16px;
+}
+
+.chest-text {
+    font-size: 13px;
+    color: #ffc107;
+    font-weight: 500;
+}
+
+/* ============================================================================
+ * NPC Dialogue Panel Styles (Feature 043)
+ * ============================================================================ */
+
+.dialogue-panel-container {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    max-width: 90vw;
+    background: rgba(0, 0, 0, 0.9);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    z-index: 300;
+    animation: dialogue-in 0.3s ease-out;
+    pointer-events: auto;
+}
+
+@keyframes dialogue-in {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+.dialogue-header {
+    padding: 12px 16px;
+    background: rgba(255, 193, 7, 0.15);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px 6px 0 0;
+}
+
+.dialogue-npc-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #ffc107;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.dialogue-content {
+    padding: 16px;
+}
+
+.dialogue-lines {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    min-height: 60px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.dialogue-line {
+    font-size: 15px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.95);
+    margin-bottom: 8px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.dialogue-line:last-child {
+    margin-bottom: 0;
+}
+
+.dialogue-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.dialogue-option {
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    font-size: 14px;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+}
+
+.dialogue-option:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.dialogue-option:active {
+    transform: scale(0.98);
+}
+
+.dialogue-option.accept-quest {
+    background: rgba(76, 175, 80, 0.2);
+    border-color: #4caf50;
+    color: #81c784;
+}
+
+.dialogue-option.accept-quest:hover {
+    background: rgba(76, 175, 80, 0.3);
+    border-color: #66bb6a;
+}
+
+.dialogue-option.decline-quest {
+    background: rgba(244, 67, 54, 0.2);
+    border-color: #f44336;
+    color: #ef9a9a;
+}
+
+.dialogue-option.decline-quest:hover {
+    background: rgba(244, 67, 54, 0.3);
+    border-color: #ef5350;
+}
+
+.dialogue-option.close {
+    background: rgba(158, 158, 158, 0.2);
+    border-color: #9e9e9e;
+    color: #bdbdbd;
+}
+
+.dialogue-option.close:hover {
+    background: rgba(158, 158, 158, 0.3);
+    border-color: #bdbdbd;
+}
+
+/* ============================================================================
+ * Subtitle Overlay Styles (Feature 042)
+ * ============================================================================ */
+
+.subtitle-overlay {
+    position: fixed;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    z-index: 80;
+}
+
+.subtitle-entry {
+    padding: 8px 16px;
+    background: rgba(0, 0, 0, var(--subtitle-bg-opacity, 0.75));
+    border-radius: 4px;
+    text-align: center;
+    max-width: 80vw;
+}
+
+.subtitle-entry.size-small {
+    font-size: 14px;
+}
+
+.subtitle-entry.size-medium {
+    font-size: 18px;
+}
+
+.subtitle-entry.size-large {
+    font-size: 24px;
+}
+
+.subtitle-entry.fade-out {
+    animation: subtitle-out 0.3s ease-in forwards;
+}
+
+@keyframes subtitle-out {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+/* ============================================================================
+ * Utility Classes
+ * ============================================================================ */
+
+.hidden {
+    display: none !important;
+}
+
+.interactive {
+    pointer-events: auto;
+}

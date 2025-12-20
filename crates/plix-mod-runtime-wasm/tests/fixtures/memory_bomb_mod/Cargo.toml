@@ -1,0 +1,14 @@
+[package]
+name = "memory-bomb-mod"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+opt-level = "s"
+lto = true
+
+# Empty workspace table to exclude from parent workspace
+[workspace]

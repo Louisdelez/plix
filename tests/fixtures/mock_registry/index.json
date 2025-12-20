@@ -1,0 +1,73 @@
+{
+  "registry_version": 1,
+  "name": "Mock Test Registry",
+  "base_url": "file://./",
+  "updated_at": "2025-12-18T12:00:00Z",
+  "mods": [
+    {
+      "id": "test-core",
+      "name": "Test Core Library",
+      "description": "Core library with no dependencies",
+      "author": "Test Author",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "sha256": "49cedef521519d16fe0cae12b17b7427e2f5004a80db63d8c8e7e00eec8839dd",
+          "download_url": "mods/test-core-1.0.0.plixmod",
+          "size": 256,
+          "dependencies": [],
+          "api_version": 1,
+          "published_at": "2025-12-01T10:00:00Z"
+        },
+        {
+          "version": "1.1.0",
+          "sha256": "eea1a3c31434da328b17258373b8c41a0b4114361ea59225f714fe2214c5679f",
+          "download_url": "mods/test-core-1.1.0.plixmod",
+          "size": 280,
+          "dependencies": [],
+          "api_version": 1,
+          "published_at": "2025-12-15T10:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": "test-utils",
+      "name": "Test Utilities",
+      "description": "Utility library depending on test-core",
+      "author": "Test Author",
+      "versions": [
+        {
+          "version": "2.0.0",
+          "sha256": "26f9195d716fb4e5024c950a1067197eaf63482419799fefec44c63209731f32",
+          "download_url": "mods/test-utils-2.0.0.plixmod",
+          "size": 512,
+          "dependencies": [
+            { "id": "test-core", "version_req": "^1.0" }
+          ],
+          "api_version": 1,
+          "published_at": "2025-12-10T10:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": "test-app",
+      "name": "Test Application",
+      "description": "Application depending on test-utils (transitive: test-core)",
+      "author": "Test Author",
+      "versions": [
+        {
+          "version": "3.0.0",
+          "sha256": "b05d61d05044ad8ae6f9042549970b0095120d3b465fdffc36970fb75ae22fe3",
+          "download_url": "mods/test-app-3.0.0.plixmod",
+          "size": 1024,
+          "dependencies": [
+            { "id": "test-utils", "version_req": "^2.0" }
+          ],
+          "api_version": 1,
+          "engine": { "min": "0.36.0" },
+          "published_at": "2025-12-18T10:00:00Z"
+        }
+      ]
+    }
+  ]
+}

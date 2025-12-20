@@ -2,6 +2,11 @@
 //!
 //! Usage: plix-client [OPTIONS]
 
+// Include shadow-rs generated build info
+mod shadow {
+    include!(concat!(env!("OUT_DIR"), "/shadow.rs"));
+}
+
 use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::net::{SocketAddr, UdpSocket};
@@ -37,6 +42,7 @@ use plix_client::ui::{
 };
 use plix_client::ui_cef::{CefConfig, CefShell};
 use plix_client::world::ClientWorld;
+use plix_common::build_info::BuildInfo;
 use plix_common::math::Vec3;
 use plix_common::protocol::{
     BlockEditKind, BlockEditRequest, ClientMessage, GameEvent, ServerMessage, WorldSnapshot,
@@ -46,11 +52,25 @@ use plix_common::time::Tick;
 use plix_common::types::BlockType;
 use plix_common::types::PlayerId;
 
+/// Get build information from shadow-rs constants
+fn get_build_info() -> BuildInfo {
+    BuildInfo::from_shadow(
+        shadow::PKG_VERSION,
+        shadow::COMMIT_HASH,
+        shadow::SHORT_COMMIT,
+        shadow::BUILD_TIME,
+        shadow::RUST_VERSION,
+        shadow::BRANCH,
+        shadow::GIT_CLEAN,
+        shadow::BUILD_TARGET,
+    )
+}
+
 /// Plix game client
 #[derive(Parser, Debug)]
 #[command(name = "plix-client")]
 #[command(about = "Multiplayer game client for Plix")]
-#[command(version)]
+#[command(version = shadow::CLAP_LONG_VERSION)]
 struct Args {
     /// Server address to connect to (e.g., "127.0.0.1:7777")
     #[arg(long, default_value = "127.0.0.1:7777")]
@@ -1733,6 +1753,16 @@ fn main() {
                 .unwrap_or_else(|_| format!("plix={}", args.log_level).parse().unwrap()),
         )
         .init();
+
+    // Log version info on startup
+    let build_info = get_build_info();
+    info!(
+        version = %build_info.version,
+        commit = %build_info.commit_sha_short,
+        target = %build_info.target_triple,
+        "Starting plix-client {}",
+        build_info.display_version()
+    );
 
     if args.headless {
         // Headless mode - use tokio runtime for networking only

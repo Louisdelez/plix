@@ -1,0 +1,39 @@
+# Mob: Gate Warden
+# Chapter 1 boss - the corrupted guardian of the crypt
+
+mob_id = "gate_warden"
+display_name = "Gate Warden"
+loot_table = "gate_warden_drops"
+xp_reward = 500
+credit_reward = 200
+tags = ["boss", "undead", "elite"]
+
+[stats]
+hp = 500
+damage = 25
+speed = 3.0
+armor = 10
+aggro_radius = 15.0
+leash_radius = 30.0
+attack_range = 2.5
+attack_cooldown = 2.0
+
+[behavior]
+type = "Boss"
+
+# Phase 1: Below 50% HP - Enrage
+[[behavior.phases]]
+hp_threshold = 0.5
+
+[behavior.phases.behavior_modifier]
+type = "Enrage"
+attack_speed_multiplier = 1.5
+
+# Phase 2: Below 25% HP - Summon Minions
+[[behavior.phases]]
+hp_threshold = 0.25
+
+[behavior.phases.behavior_modifier]
+type = "SummonMinions"
+mob_id = "cultist"
+count = 2

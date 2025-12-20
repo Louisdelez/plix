@@ -15,6 +15,7 @@ use plix_common::types::{InputSeq, PlayerId, TeamId};
 use crate::anti_cheat::AntiCheatState;
 use crate::crafting::CraftCooldown;
 use crate::economy::PlayerWallet;
+use crate::security::SecurityContext;
 use crate::weapons::PlayerWeaponState;
 
 /// Maximum pending inputs per player
@@ -229,6 +230,10 @@ pub struct ServerPlayer {
     // Identity (Feature 025)
     /// Last tick when player renamed (for rate limiting) [T047]
     pub last_rename_tick: Option<Tick>,
+
+    // Security (Feature 040)
+    /// Per-connection security context (rate limiting, strikes)
+    pub security: SecurityContext,
 }
 
 impl ServerPlayer {
@@ -270,6 +275,7 @@ impl ServerPlayer {
             craft_cooldown: CraftCooldown::new(),
             wallet: PlayerWallet::new(),
             last_rename_tick: None,
+            security: SecurityContext::new(id.0 as u64),
         }
     }
 

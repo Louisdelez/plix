@@ -192,6 +192,102 @@ impl BridgeError {
     pub fn server_full() -> Self {
         Self::new("ECON004", "Server is full.")
     }
+
+    // --- Chat errors (ECHAT) - Feature 032 ---
+
+    /// Chat message too long
+    pub fn chat_too_long(max_len: usize) -> Self {
+        Self::new(
+            "ECHAT001",
+            &format!("Message exceeds {} characters", max_len),
+        )
+    }
+
+    /// Chat rate limited
+    pub fn chat_rate_limited() -> Self {
+        Self::new("ECHAT002", "Please wait before sending another message")
+    }
+
+    /// Chat message empty
+    pub fn chat_empty() -> Self {
+        Self::new("ECHAT003", "Message cannot be empty")
+    }
+
+    // --- Embed errors (EEMB) - Feature 033 ---
+
+    /// Invalid URL or video/channel ID
+    pub fn embed_invalid_url() -> Self {
+        Self::new("EEMB001", "Invalid URL or video ID")
+    }
+
+    /// Provider is disabled in config
+    pub fn embed_provider_disabled(provider: &str) -> Self {
+        Self::new("EEMB002", &format!("{} provider is disabled", provider))
+    }
+
+    /// Navigation to non-whitelisted domain blocked
+    pub fn embed_blocked_domain() -> Self {
+        Self::new("EEMB003", "Navigation to external domain blocked")
+    }
+
+    /// Rate limited (action within cooldown period)
+    pub fn embed_rate_limited() -> Self {
+        Self::new("EEMB004", "Please wait before loading another video")
+    }
+
+    /// Embeds feature is disabled
+    pub fn embed_disabled() -> Self {
+        Self::new("EEMB002", "Embeds feature is disabled")
+    }
+
+    // --- Accessibility errors (EACC) - Feature 042 ---
+
+    /// Invalid action name for keybinding
+    pub fn invalid_action(action: &str) -> Self {
+        Self::new("EACC001", &format!("Invalid action: {}", action))
+    }
+
+    /// Invalid key name for keybinding
+    pub fn invalid_key(key: &str) -> Self {
+        Self::new("EACC002", &format!("Invalid key: {}", key))
+    }
+
+    /// Invalid accessibility setting
+    pub fn invalid_setting(setting: &str) -> Self {
+        Self::new("EACC003", &format!("Invalid accessibility setting: {}", setting))
+    }
+
+    /// Invalid setting value
+    pub fn invalid_value(details: &str) -> Self {
+        Self::new("EACC004", &format!("Invalid value: {}", details))
+    }
+
+    // --- Quest errors (EQST) - Feature 043 ---
+
+    /// Quest not found
+    pub fn quest_not_found(quest_id: &str) -> Self {
+        Self::new("EQST001", &format!("Quest not found: {}", quest_id))
+    }
+
+    /// Quest prerequisites not met
+    pub fn quest_prerequisites_not_met(details: &str) -> Self {
+        Self::new("EQST002", &format!("Prerequisites not met: {}", details))
+    }
+
+    /// Quest already active
+    pub fn quest_already_active(quest_id: &str) -> Self {
+        Self::new("EQST003", &format!("Quest already active: {}", quest_id))
+    }
+
+    /// Quest not active (for abandon/pin)
+    pub fn quest_not_active(quest_id: &str) -> Self {
+        Self::new("EQST004", &format!("Quest not active: {}", quest_id))
+    }
+
+    /// Max active quests reached
+    pub fn quest_max_active() -> Self {
+        Self::new("EQST005", "Maximum active quests reached")
+    }
 }
 
 /// Message types for request/response
@@ -217,6 +313,76 @@ pub enum MessageType {
 
     /// Request clean game exit
     Quit,
+
+    // === Feature 032: In-Game UI ===
+    /// Send a chat message (Feature 032)
+    ChatSend,
+
+    /// Notify game that chat input opened (Feature 032)
+    ChatOpen,
+
+    /// Notify game that chat input closed (Feature 032)
+    ChatClose,
+
+    /// Clear local chat history (Feature 032)
+    ChatClear,
+
+    // === Feature 033: Media Embeds ===
+    /// Open/show the embed panel
+    EmbedOpenPanel,
+
+    /// Close/hide the embed panel
+    EmbedClosePanel,
+
+    /// Notify game that embed panel received focus
+    EmbedFocus,
+
+    /// Notify game that embed panel lost focus
+    EmbedUnfocus,
+
+    /// Request to load media content
+    EmbedLoad,
+
+    /// Stop/clear the current embed
+    EmbedStop,
+
+    // === Feature 042: Accessibility ===
+    /// Get current keybindings list
+    GetKeybinds,
+
+    /// Start listening for keybind capture
+    StartKeybindCapture,
+
+    /// Cancel keybind capture
+    CancelKeybindCapture,
+
+    /// Request to rebind an action
+    RebindAction,
+
+    /// Request to swap keybindings between two actions
+    SwapKeybinds,
+
+    /// Reset all keybindings to defaults
+    ResetKeybinds,
+
+    /// Get current accessibility settings
+    GetAccessibilitySettings,
+
+    /// Update an accessibility setting
+    SetAccessibility,
+
+    // === Feature 043: Quest UI ===
+    /// Request full quest sync from server
+    QuestSyncRequest,
+
+    /// Accept a quest
+    QuestAccept,
+
+    /// Abandon a quest
+    QuestAbandon,
+
+    /// Pin/unpin a quest to HUD
+    QuestPin,
 }
 
 impl MessageType {
@@ -230,6 +396,32 @@ impl MessageType {
             "ToggleFavorite" => Some(Self::ToggleFavorite),
             "Connect" => Some(Self::Connect),
             "Quit" => Some(Self::Quit),
+            // Feature 032: In-Game UI
+            "ChatSend" => Some(Self::ChatSend),
+            "ChatOpen" => Some(Self::ChatOpen),
+            "ChatClose" => Some(Self::ChatClose),
+            "ChatClear" => Some(Self::ChatClear),
+            // Feature 033: Media Embeds
+            "EmbedOpenPanel" => Some(Self::EmbedOpenPanel),
+            "EmbedClosePanel" => Some(Self::EmbedClosePanel),
+            "EmbedFocus" => Some(Self::EmbedFocus),
+            "EmbedUnfocus" => Some(Self::EmbedUnfocus),
+            "EmbedLoad" => Some(Self::EmbedLoad),
+            "EmbedStop" => Some(Self::EmbedStop),
+            // Feature 042: Accessibility
+            "GetKeybinds" => Some(Self::GetKeybinds),
+            "StartKeybindCapture" => Some(Self::StartKeybindCapture),
+            "CancelKeybindCapture" => Some(Self::CancelKeybindCapture),
+            "RebindAction" => Some(Self::RebindAction),
+            "SwapKeybinds" => Some(Self::SwapKeybinds),
+            "ResetKeybinds" => Some(Self::ResetKeybinds),
+            "GetAccessibilitySettings" => Some(Self::GetAccessibilitySettings),
+            "SetAccessibility" => Some(Self::SetAccessibility),
+            // Feature 043: Quest UI
+            "QuestSyncRequest" => Some(Self::QuestSyncRequest),
+            "QuestAccept" => Some(Self::QuestAccept),
+            "QuestAbandon" => Some(Self::QuestAbandon),
+            "QuestPin" => Some(Self::QuestPin),
             _ => None,
         }
     }
@@ -244,6 +436,32 @@ impl MessageType {
             Self::ToggleFavorite => "ToggleFavorite",
             Self::Connect => "Connect",
             Self::Quit => "Quit",
+            // Feature 032: In-Game UI
+            Self::ChatSend => "ChatSend",
+            Self::ChatOpen => "ChatOpen",
+            Self::ChatClose => "ChatClose",
+            Self::ChatClear => "ChatClear",
+            // Feature 033: Media Embeds
+            Self::EmbedOpenPanel => "EmbedOpenPanel",
+            Self::EmbedClosePanel => "EmbedClosePanel",
+            Self::EmbedFocus => "EmbedFocus",
+            Self::EmbedUnfocus => "EmbedUnfocus",
+            Self::EmbedLoad => "EmbedLoad",
+            Self::EmbedStop => "EmbedStop",
+            // Feature 042: Accessibility
+            Self::GetKeybinds => "GetKeybinds",
+            Self::StartKeybindCapture => "StartKeybindCapture",
+            Self::CancelKeybindCapture => "CancelKeybindCapture",
+            Self::RebindAction => "RebindAction",
+            Self::SwapKeybinds => "SwapKeybinds",
+            Self::ResetKeybinds => "ResetKeybinds",
+            Self::GetAccessibilitySettings => "GetAccessibilitySettings",
+            Self::SetAccessibility => "SetAccessibility",
+            // Feature 043: Quest UI
+            Self::QuestSyncRequest => "QuestSyncRequest",
+            Self::QuestAccept => "QuestAccept",
+            Self::QuestAbandon => "QuestAbandon",
+            Self::QuestPin => "QuestPin",
         }
     }
 }
@@ -256,6 +474,61 @@ pub enum PushType {
 
     /// Favorites list updated
     FavoritesUpdated,
+
+    // === Feature 032: In-Game UI ===
+    /// HUD state update (HP, RTT, FPS)
+    HudState,
+
+    /// Chat message received
+    ChatMessage,
+
+    /// Chat toast notification (when chat is closed)
+    ChatToast,
+
+    /// Scoreboard state update
+    ScoreboardState,
+
+    /// UI configuration (sent on startup)
+    UiConfig,
+
+    // === Feature 033: Media Embeds ===
+    /// Embed panel state update
+    EmbedState,
+
+    /// Embed error notification
+    EmbedError,
+
+    // === Feature 042: Accessibility ===
+    /// Current keybindings list
+    KeybindsList,
+
+    /// Keybind conflict detected
+    KeybindConflict,
+
+    /// Keybind capture timed out
+    KeybindCaptureTimeout,
+
+    /// Current accessibility settings
+    AccessibilitySettings,
+
+    /// Display a subtitle
+    SubtitleShow,
+
+    /// Clear all subtitles
+    SubtitleClear,
+
+    // === Feature 043: Quest UI ===
+    /// Full quest sync (active + completed quests)
+    QuestSync,
+
+    /// Quest progress update (step progress, step advanced, etc.)
+    QuestUpdate,
+
+    /// Quest notification (toast/popup for events)
+    QuestNotification,
+
+    /// Quest tracker HUD update (pinned quest)
+    QuestTrackerUpdate,
 }
 
 impl PushType {
@@ -264,6 +537,27 @@ impl PushType {
         match self {
             Self::ConnectionStatus => "ConnectionStatus",
             Self::FavoritesUpdated => "FavoritesUpdated",
+            // Feature 032: In-Game UI
+            Self::HudState => "HudState",
+            Self::ChatMessage => "ChatMessage",
+            Self::ChatToast => "ChatToast",
+            Self::ScoreboardState => "ScoreboardState",
+            Self::UiConfig => "UiConfig",
+            // Feature 033: Media Embeds
+            Self::EmbedState => "EmbedState",
+            Self::EmbedError => "EmbedError",
+            // Feature 042: Accessibility
+            Self::KeybindsList => "KeybindsList",
+            Self::KeybindConflict => "KeybindConflict",
+            Self::KeybindCaptureTimeout => "KeybindCaptureTimeout",
+            Self::AccessibilitySettings => "AccessibilitySettings",
+            Self::SubtitleShow => "SubtitleShow",
+            Self::SubtitleClear => "SubtitleClear",
+            // Feature 043: Quest UI
+            Self::QuestSync => "QuestSync",
+            Self::QuestUpdate => "QuestUpdate",
+            Self::QuestNotification => "QuestNotification",
+            Self::QuestTrackerUpdate => "QuestTrackerUpdate",
         }
     }
 }
@@ -308,6 +602,32 @@ mod tests {
             MessageType::ToggleFavorite,
             MessageType::Connect,
             MessageType::Quit,
+            // Feature 032: In-Game UI
+            MessageType::ChatSend,
+            MessageType::ChatOpen,
+            MessageType::ChatClose,
+            MessageType::ChatClear,
+            // Feature 033: Media Embeds
+            MessageType::EmbedOpenPanel,
+            MessageType::EmbedClosePanel,
+            MessageType::EmbedFocus,
+            MessageType::EmbedUnfocus,
+            MessageType::EmbedLoad,
+            MessageType::EmbedStop,
+            // Feature 042: Accessibility
+            MessageType::GetKeybinds,
+            MessageType::StartKeybindCapture,
+            MessageType::CancelKeybindCapture,
+            MessageType::RebindAction,
+            MessageType::SwapKeybinds,
+            MessageType::ResetKeybinds,
+            MessageType::GetAccessibilitySettings,
+            MessageType::SetAccessibility,
+            // Feature 043: Quest UI
+            MessageType::QuestSyncRequest,
+            MessageType::QuestAccept,
+            MessageType::QuestAbandon,
+            MessageType::QuestPin,
         ] {
             let s = msg_type.as_str();
             assert_eq!(MessageType::parse(s), Some(msg_type));
@@ -386,5 +706,23 @@ mod tests {
         assert_eq!(BridgeError::connection_refused().code, "ECON002");
         assert_eq!(BridgeError::version_incompatible().code, "ECON003");
         assert_eq!(BridgeError::server_full().code, "ECON004");
+        // Feature 032: Chat errors
+        assert_eq!(BridgeError::chat_too_long(200).code, "ECHAT001");
+        assert_eq!(BridgeError::chat_rate_limited().code, "ECHAT002");
+        assert_eq!(BridgeError::chat_empty().code, "ECHAT003");
+        // Feature 033: Embed errors
+        assert_eq!(BridgeError::embed_invalid_url().code, "EEMB001");
+        assert_eq!(
+            BridgeError::embed_provider_disabled("YouTube").code,
+            "EEMB002"
+        );
+        assert_eq!(BridgeError::embed_blocked_domain().code, "EEMB003");
+        assert_eq!(BridgeError::embed_rate_limited().code, "EEMB004");
+        assert_eq!(BridgeError::embed_disabled().code, "EEMB002");
+        // Feature 042: Accessibility errors
+        assert_eq!(BridgeError::invalid_action("Unknown").code, "EACC001");
+        assert_eq!(BridgeError::invalid_key("BadKey").code, "EACC002");
+        assert_eq!(BridgeError::invalid_setting("bad").code, "EACC003");
+        assert_eq!(BridgeError::invalid_value("out of range").code, "EACC004");
     }
 }

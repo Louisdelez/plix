@@ -1,0 +1,438 @@
+# Plix Release Workflow
+#
+# Builds, packages, and releases Plix client and server for all platforms.
+#
+# Triggers:
+#   - Push to tags matching 'v*' (e.g., v1.0.0)
+#   - Manual workflow dispatch
+#
+# Requirements:
+#   - Tags MUST be GPG-signed for production releases
+#   - Secrets: GITHUB_TOKEN (automatic)
+#
+# Artifacts:
+#   - plix-client-linux-x86_64-{version}.tar.gz
+#   - plix-client-win64-{version}.zip
+#   - plix-client-macos-{version}.zip
+#   - plix-server-headless-linux-x86_64-{version}.tar.gz
+#   - plix-server-headless-win64-{version}.zip
+#   - plix-server-headless-macos-{version}.zip
+#   - SHA256SUMS (combined checksum file)
+#   - release_manifest.json (machine-readable metadata)
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.1.0)'
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform_name }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          # Linux x86_64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            platform_name: linux-x86_64
+            archive_ext: tar.gz
+            client_binary: plix-client
+            server_binary: plix-server-headless
+            package_script: scripts/package/client_linux.sh
+            server_package_script: scripts/package/server_linux.sh
+
+          # Windows x64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            platform_name: win64
+            archive_ext: zip
+            client_binary: plix-client.exe
+            server_binary: plix-server-headless.exe
+            package_script: scripts/package/client_windows.ps1
+            server_package_script: scripts/package/server_windows.ps1
+
+          # macOS x64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            platform_name: macos
+            archive_ext: zip
+            client_binary: plix-client
+            server_binary: plix-server-headless
+            package_script: scripts/package/client_macos.sh
+            server_package_script: scripts/package/server_macos.sh
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      # Build client
+      - name: Build client
+        run: cargo build --release --bin plix-client --target ${{ matrix.target }}
+
+      # Build headless server
+      - name: Build headless server
+        run: cargo build --release --bin plix-server-headless --target ${{ matrix.target }}
+
+      # Package client (Linux/macOS)
+      - name: Package client (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          chmod +x ${{ matrix.package_script }}
+          ${{ matrix.package_script }} \
+            --binary-path target/${{ matrix.target }}/release/${{ matrix.client_binary }} \
+            --version ${{ steps.version.outputs.version }} \
+            --output-dir dist/ \
+            --assets-dir assets/
+
+      # Package client (Windows)
+      - name: Package client (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          .\${{ matrix.package_script }} `
+            -BinaryPath target/${{ matrix.target }}/release/${{ matrix.client_binary }} `
+            -Version ${{ steps.version.outputs.version }} `
+            -OutputDir dist/ `
+            -AssetsDir assets/
+
+      # Package server (Linux/macOS)
+      - name: Package server (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          chmod +x ${{ matrix.server_package_script }}
+          ${{ matrix.server_package_script }} \
+            --binary-path target/${{ matrix.target }}/release/${{ matrix.server_binary }} \
+            --version ${{ steps.version.outputs.version }} \
+            --output-dir dist/
+
+      # Package server (Windows)
+      - name: Package server (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          .\${{ matrix.server_package_script }} `
+            -BinaryPath target/${{ matrix.target }}/release/${{ matrix.server_binary }} `
+            -Version ${{ steps.version.outputs.version }} `
+            -OutputDir dist/
+
+      # Smoke test client bundle (Unix)
+      - name: Smoke test client bundle (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          chmod +x scripts/package/smoke_client_bundle.sh
+          ./scripts/package/smoke_client_bundle.sh dist/plix-client-${{ matrix.platform_name }}-${{ steps.version.outputs.version }}.${{ matrix.archive_ext }}
+
+      # Smoke test client bundle (Windows)
+      - name: Smoke test client bundle (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          .\scripts\package\smoke_client_bundle.ps1 dist/plix-client-${{ matrix.platform_name }}-${{ steps.version.outputs.version }}.${{ matrix.archive_ext }}
+
+      # Smoke test server bundle (Unix)
+      - name: Smoke test server bundle (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          chmod +x scripts/ci/smoke_headless_server.sh
+          ./scripts/ci/smoke_headless_server.sh dist/plix-server-headless-${{ matrix.platform_name }}-${{ steps.version.outputs.version }}.${{ matrix.archive_ext }}
+
+      # Smoke test server bundle (Windows)
+      - name: Smoke test server bundle (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          .\scripts\ci\smoke_headless_server.ps1 dist/plix-server-headless-${{ matrix.platform_name }}-${{ steps.version.outputs.version }}.${{ matrix.archive_ext }}
+
+      # Upload artifacts
+      - name: Upload client artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plix-client-${{ matrix.platform_name }}
+          path: |
+            dist/plix-client-${{ matrix.platform_name }}-*.${{ matrix.archive_ext }}
+            dist/plix-client-${{ matrix.platform_name }}-*.${{ matrix.archive_ext }}.sha256
+          retention-days: 7
+
+      - name: Upload server artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plix-server-headless-${{ matrix.platform_name }}
+          path: |
+            dist/plix-server-headless-${{ matrix.platform_name }}-*.${{ matrix.archive_ext }}
+            dist/plix-server-headless-${{ matrix.platform_name }}-*.${{ matrix.archive_ext }}.sha256
+          retention-days: 7
+
+  # Verify GPG signature on tag before release
+  verify-tag:
+    name: Verify GPG Signed Tag
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Verify tag is GPG signed
+        id: verify
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          echo "Verifying GPG signature for tag: $TAG_NAME"
+
+          # Check if tag exists and get its type
+          TAG_TYPE=$(git cat-file -t "$TAG_NAME" 2>/dev/null || echo "unknown")
+
+          if [ "$TAG_TYPE" != "tag" ]; then
+            echo "::error::Tag $TAG_NAME is a lightweight tag, not an annotated tag."
+            echo "::error::Production releases require GPG-signed annotated tags."
+            echo "::error::Create with: git tag -s v$TAG_NAME -m 'Release v$TAG_NAME'"
+            exit 1
+          fi
+
+          # Check for GPG signature
+          if git verify-tag "$TAG_NAME" 2>&1 | grep -q "Good signature"; then
+            echo "GPG signature verified for tag $TAG_NAME"
+            echo "signed=true" >> $GITHUB_OUTPUT
+          else
+            # For pre-releases (alpha/beta/rc), allow unsigned tags with warning
+            if echo "$TAG_NAME" | grep -qE '(-alpha|-beta|-rc)'; then
+              echo "::warning::Tag $TAG_NAME is not GPG signed. Pre-release tags should be signed for production."
+              echo "signed=false" >> $GITHUB_OUTPUT
+            else
+              echo "::error::Tag $TAG_NAME is not GPG signed."
+              echo "::error::Production releases require GPG-signed tags."
+              echo "::error::Sign with: git tag -s $TAG_NAME -m 'Release $TAG_NAME'"
+              exit 1
+            fi
+          fi
+
+      - name: Tag verification summary
+        run: |
+          echo "## Tag Verification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.verify.outputs.signed }}" = "true" ]; then
+            echo "GPG Signature: Verified" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "GPG Signature: Not verified (pre-release allowed)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  release:
+    name: Create Release
+    needs: [build, verify-tag]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release/
+          find artifacts/ -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.sha256" \) -exec cp {} release/ \;
+          ls -la release/
+
+      - name: Generate SHA256SUMS
+        working-directory: release
+        run: |
+          # Generate combined checksum file for all archives
+          sha256sum *.tar.gz *.zip > SHA256SUMS
+          echo "Generated SHA256SUMS:"
+          cat SHA256SUMS
+
+      - name: Generate release manifest
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          COMMIT_SHA="${GITHUB_SHA}"
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+
+          # Build JSON manifest
+          cat > release/release_manifest.json << EOF
+          {
+            "version": "$VERSION",
+            "tag": "$TAG_NAME",
+            "commit": "$COMMIT_SHA",
+            "released_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "artifacts": [
+          EOF
+
+          # Add each artifact to manifest
+          FIRST=true
+          for file in release/*.tar.gz release/*.zip; do
+            if [ -f "$file" ]; then
+              FILENAME=$(basename "$file")
+              SIZE=$(stat -c%s "$file")
+              SHA256=$(sha256sum "$file" | cut -d' ' -f1)
+
+              # Determine platform and type
+              case "$FILENAME" in
+                *linux-x86_64*) PLATFORM="linux-x86_64" ;;
+                *win64*) PLATFORM="windows-x64" ;;
+                *macos*) PLATFORM="macos-x64" ;;
+                *) PLATFORM="unknown" ;;
+              esac
+
+              case "$FILENAME" in
+                plix-client-*) TYPE="client" ;;
+                plix-server-headless-*) TYPE="server" ;;
+                *) TYPE="unknown" ;;
+              esac
+
+              if [ "$FIRST" = true ]; then
+                FIRST=false
+              else
+                echo "," >> release/release_manifest.json
+              fi
+
+              cat >> release/release_manifest.json << ARTIFACT
+                {
+                  "name": "$FILENAME",
+                  "platform": "$PLATFORM",
+                  "type": "$TYPE",
+                  "size": $SIZE,
+                  "sha256": "$SHA256"
+                }
+          ARTIFACT
+            fi
+          done
+
+          cat >> release/release_manifest.json << EOF
+
+            ]
+          }
+          EOF
+
+          echo "Generated release_manifest.json:"
+          cat release/release_manifest.json
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          cat << 'NOTES_EOF' > release_notes.md
+          ## Plix $VERSION
+
+          ### Downloads
+
+          **Client:**
+          - `plix-client-linux-x86_64-$VERSION.tar.gz` - Linux x86_64
+          - `plix-client-win64-$VERSION.zip` - Windows x64
+          - `plix-client-macos-$VERSION.zip` - macOS
+
+          **Server:**
+          - `plix-server-headless-linux-x86_64-$VERSION.tar.gz` - Linux x86_64
+          - `plix-server-headless-win64-$VERSION.zip` - Windows x64
+          - `plix-server-headless-macos-$VERSION.zip` - macOS
+
+          ### Verification
+
+          Verify downloads using `SHA256SUMS`:
+
+          ```bash
+          # Download SHA256SUMS and your artifact
+          sha256sum -c SHA256SUMS --ignore-missing
+          ```
+
+          Or verify individual files:
+
+          ```bash
+          sha256sum -c plix-client-linux-x86_64-$VERSION.tar.gz.sha256
+          ```
+
+          ### Release Manifest
+
+          Machine-readable release metadata is available in `release_manifest.json`.
+
+          ### Quick Start
+
+          **Client:**
+          ```bash
+          tar xzf plix-client-linux-x86_64-$VERSION.tar.gz
+          cd plix-client-linux-x86_64-$VERSION
+          ./plix-client --server 127.0.0.1:7777
+          ```
+
+          **Server:**
+          ```bash
+          tar xzf plix-server-headless-linux-x86_64-$VERSION.tar.gz
+          cd plix-server-headless-linux-x86_64-$VERSION
+          ./run_server.sh
+          ```
+
+          ### Migration from Previous Versions
+
+          If upgrading from v0.x, run the server with `--migrate` to upgrade configuration:
+
+          ```bash
+          ./plix-server --migrate --dry-run  # Preview changes
+          ./plix-server --migrate            # Apply migration
+          ```
+
+          See [Migration Guide](https://github.com/Louisdelez/plix/blob/master/docs/release/compatibility.md) for details.
+          NOTES_EOF
+
+          # Replace $VERSION placeholder
+          sed -i "s/\$VERSION/$VERSION/g" release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Plix ${{ github.ref_name }}
+          body_path: release_notes.md
+          files: |
+            release/*
+          draft: false
+          prerelease: ${{ contains(github.ref, '-alpha') || contains(github.ref, '-beta') || contains(github.ref, '-rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

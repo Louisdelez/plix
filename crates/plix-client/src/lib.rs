@@ -9,7 +9,9 @@
 //! - HUD overlay
 //! - Configuration persistence
 //! - Optional CEF-based HTML UI (Feature 030)
+//! - Accessibility features (Feature 042)
 
+pub mod accessibility;
 pub mod chunk_manager;
 pub mod chunk_mesher;
 pub mod commands;
@@ -18,6 +20,7 @@ pub mod console;
 pub mod input;
 pub mod interpolation;
 pub mod matchmaking;
+pub mod mods;
 pub mod net;
 pub mod persist;
 pub mod prediction;
@@ -116,7 +119,7 @@ impl Client {
         self.player_id
     }
 
-    /// Connect to a server
+    /// Connect to a server (Feature 037: includes mod handshake)
     pub async fn connect(&mut self, server_addr: SocketAddr) -> Result<(), ClientError> {
         info!(server = %server_addr, "Connecting to server");
 
@@ -138,14 +141,14 @@ impl Client {
         };
         self.send_message(&msg).await?;
 
-        // Wait for response (with timeout)
-        let mut buf = vec![0u8; 1500];
+        // Wait for ModSet response (Feature 037)
+        let mut buf = vec![0u8; 65535]; // Larger buffer for mod set
         let timeout = tokio::time::Duration::from_secs(5);
 
         match tokio::time::timeout(timeout, self.recv(&mut buf)).await {
             Ok(Ok(len)) => {
                 let response: ServerMessage = plix_common::protocol::decode(&buf[..len])?;
-                self.handle_connect_response(response)?;
+                self.handle_mod_set(response).await?;
             }
             Ok(Err(e)) => {
                 self.state = ConnectionState::Failed;
@@ -162,9 +165,54 @@ impl Client {
         Ok(())
     }
 
-    /// Handle connection response from server
-    fn handle_connect_response(&mut self, response: ServerMessage) -> Result<(), ClientError> {
+    /// Handle ModSet message from server (Feature 037)
+    async fn handle_mod_set(&mut self, response: ServerMessage) -> Result<(), ClientError> {
+        use plix_common::protocol::messages::{ModSetDescriptor, ModSetResponse};
+
         match response {
+            ServerMessage::ModSet(mod_set) => {
+                info!(
+                    mod_count = mod_set.mods.len(),
+                    total_size = mod_set.total_payload_size,
+                    "Received ModSetDescriptor"
+                );
+
+                // Build and send ModSetResponse
+                // For now, we support sync but have no cached payloads
+                let response = ModSetResponse {
+                    supports_sync: true,
+                    cached_hashes: Vec::new(), // TODO: integrate with PayloadCache
+                    engine_version: Some(env!("CARGO_PKG_VERSION").to_string()),
+                };
+
+                let msg = ClientMessage::ModSetResponse(response);
+                self.send_message(&msg).await?;
+
+                // Wait for JoinDecision
+                let mut buf = vec![0u8; 65535];
+                let timeout = tokio::time::Duration::from_secs(5);
+
+                match tokio::time::timeout(timeout, self.recv(&mut buf)).await {
+                    Ok(Ok(len)) => {
+                        let decision: ServerMessage =
+                            plix_common::protocol::decode(&buf[..len])?;
+                        self.handle_join_decision(decision).await?;
+                    }
+                    Ok(Err(e)) => {
+                        self.state = ConnectionState::Failed;
+                        return Err(e);
+                    }
+                    Err(_) => {
+                        self.state = ConnectionState::Failed;
+                        return Err(ClientError::ConnectionFailed(
+                            "Join decision timeout".to_string(),
+                        ));
+                    }
+                }
+
+                Ok(())
+            }
+            // Handle legacy servers that send Connected directly (backwards compat)
             ServerMessage::Connected {
                 player_id,
                 tick,
@@ -179,7 +227,7 @@ impl Client {
                     display_name = %display_name,
                     tick = tick.0,
                     tick_rate = tick_rate,
-                    "Connected to server"
+                    "Connected to server (legacy, no mod handshake)"
                 );
                 self.player_id = Some(player_id);
                 self.server_tick = tick;
@@ -195,7 +243,143 @@ impl Client {
             _ => {
                 self.state = ConnectionState::Failed;
                 Err(ClientError::ConnectionFailed(
-                    "Unexpected response".to_string(),
+                    "Unexpected response (expected ModSet)".to_string(),
+                ))
+            }
+        }
+    }
+
+    /// Handle JoinDecision from server (Feature 037)
+    async fn handle_join_decision(&mut self, response: ServerMessage) -> Result<(), ClientError> {
+        use plix_common::protocol::messages::JoinDecision;
+
+        match response {
+            ServerMessage::JoinDecision(decision) => {
+                if !decision.allowed {
+                    let reason = decision
+                        .rejection_reason
+                        .unwrap_or_else(|| "Mod policy rejection".to_string());
+                    warn!(reason = %reason, "Join rejected by mod policy");
+                    self.state = ConnectionState::Failed;
+                    return Err(ClientError::Rejected(reason));
+                }
+
+                info!(
+                    mods_to_sync = decision.mods_to_sync.len(),
+                    "Join decision: allowed"
+                );
+
+                // If sync is needed, we'd handle payload transfer here
+                // For now, we just wait for Connected
+                if !decision.mods_to_sync.is_empty() {
+                    info!("Payload sync required (not yet implemented)");
+                    // TODO: implement payload receiver integration
+                }
+
+                // Wait for Connected message
+                let mut buf = vec![0u8; 65535];
+                let timeout = tokio::time::Duration::from_secs(30); // Longer for sync
+
+                match tokio::time::timeout(timeout, self.recv(&mut buf)).await {
+                    Ok(Ok(len)) => {
+                        let connected: ServerMessage =
+                            plix_common::protocol::decode(&buf[..len])?;
+                        self.handle_connected(connected)?;
+                    }
+                    Ok(Err(e)) => {
+                        self.state = ConnectionState::Failed;
+                        return Err(e);
+                    }
+                    Err(_) => {
+                        self.state = ConnectionState::Failed;
+                        return Err(ClientError::ConnectionFailed(
+                            "Connected message timeout".to_string(),
+                        ));
+                    }
+                }
+
+                Ok(())
+            }
+            // Handle Connected directly (server with no mods to sync)
+            ServerMessage::Connected {
+                player_id,
+                tick,
+                tick_rate,
+                arena_data: _,
+                display_name,
+                session_id,
+            } => {
+                info!(
+                    player_id = player_id.0,
+                    session_id = session_id.0,
+                    display_name = %display_name,
+                    "Connected to server"
+                );
+                self.player_id = Some(player_id);
+                self.server_tick = tick;
+                self.tick_rate = tick_rate;
+                self.state = ConnectionState::Connected;
+                Ok(())
+            }
+            ServerMessage::ModSyncFailed { reason, message } => {
+                warn!(reason = ?reason, message = %message, "Mod sync failed");
+                self.state = ConnectionState::Failed;
+                Err(ClientError::ConnectionFailed(format!(
+                    "Mod sync failed: {}",
+                    message
+                )))
+            }
+            _ => {
+                self.state = ConnectionState::Failed;
+                Err(ClientError::ConnectionFailed(
+                    "Unexpected response (expected JoinDecision or Connected)".to_string(),
+                ))
+            }
+        }
+    }
+
+    /// Handle Connected message (final step of connection)
+    fn handle_connected(&mut self, response: ServerMessage) -> Result<(), ClientError> {
+        match response {
+            ServerMessage::Connected {
+                player_id,
+                tick,
+                tick_rate,
+                arena_data: _,
+                display_name,
+                session_id,
+            } => {
+                info!(
+                    player_id = player_id.0,
+                    session_id = session_id.0,
+                    display_name = %display_name,
+                    tick = tick.0,
+                    tick_rate = tick_rate,
+                    "Connected to server (mod handshake complete)"
+                );
+                self.player_id = Some(player_id);
+                self.server_tick = tick;
+                self.tick_rate = tick_rate;
+                self.state = ConnectionState::Connected;
+                Ok(())
+            }
+            ServerMessage::ModSyncFailed { reason, message } => {
+                warn!(reason = ?reason, message = %message, "Mod sync failed");
+                self.state = ConnectionState::Failed;
+                Err(ClientError::ConnectionFailed(format!(
+                    "Mod sync failed: {}",
+                    message
+                )))
+            }
+            ServerMessage::Rejected { reason } => {
+                warn!(reason = %reason, "Connection rejected");
+                self.state = ConnectionState::Failed;
+                Err(ClientError::Rejected(reason))
+            }
+            _ => {
+                self.state = ConnectionState::Failed;
+                Err(ClientError::ConnectionFailed(
+                    "Unexpected response (expected Connected)".to_string(),
                 ))
             }
         }

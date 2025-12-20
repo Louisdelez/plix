@@ -1,0 +1,2 @@
+This is not valid WASM binary data - just some random bytes for testing error handling.
+The WASM magic bytes should be 0x00 0x61 0x73 0x6d but this file has ASCII text instead.

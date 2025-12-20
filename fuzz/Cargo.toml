@@ -1,0 +1,41 @@
+[package]
+name = "plix-fuzz"
+version = "0.0.0"
+authors = ["Plix Developers"]
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+
+[dependencies.plix-common]
+path = "../crates/plix-common"
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "fuzz_decode_client_message"
+path = "fuzz_targets/fuzz_decode_client_message.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_decode_server_message"
+path = "fuzz_targets/fuzz_decode_server_message.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_decode_modsync_chunk"
+path = "fuzz_targets/fuzz_decode_modsync_chunk.rs"
+test = false
+doc = false
+bench = false

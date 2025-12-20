@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use tracing::{info, warn};
 
+use crate::accessibility::AccessibilityConfig;
 use crate::ui_cef::CefConfig;
 
 /// All rebindable player actions
@@ -52,6 +53,39 @@ impl Action {
             Action::RemoveBlock => "Remove Block",
             Action::Pause => "Pause",
             Action::ToggleDebugOverlay => "Debug Overlay",
+        }
+    }
+
+    /// Get string identifier for serialization
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Action::Forward => "forward",
+            Action::Backward => "backward",
+            Action::Left => "left",
+            Action::Right => "right",
+            Action::Jump => "jump",
+            Action::Attack => "attack",
+            Action::PlaceBlock => "place_block",
+            Action::RemoveBlock => "remove_block",
+            Action::Pause => "pause",
+            Action::ToggleDebugOverlay => "toggle_debug_overlay",
+        }
+    }
+
+    /// Parse action from string
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "forward" => Some(Action::Forward),
+            "backward" => Some(Action::Backward),
+            "left" => Some(Action::Left),
+            "right" => Some(Action::Right),
+            "jump" => Some(Action::Jump),
+            "attack" => Some(Action::Attack),
+            "place_block" => Some(Action::PlaceBlock),
+            "remove_block" => Some(Action::RemoveBlock),
+            "pause" => Some(Action::Pause),
+            "toggle_debug_overlay" => Some(Action::ToggleDebugOverlay),
+            _ => None,
         }
     }
 }
@@ -285,6 +319,145 @@ impl Key {
             Key::MiddleClick => "MMB",
         }
     }
+
+    /// Get string identifier for serialization
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Key::A => "a",
+            Key::B => "b",
+            Key::C => "c",
+            Key::D => "d",
+            Key::E => "e",
+            Key::F => "f",
+            Key::G => "g",
+            Key::H => "h",
+            Key::I => "i",
+            Key::J => "j",
+            Key::K => "k",
+            Key::L => "l",
+            Key::M => "m",
+            Key::N => "n",
+            Key::O => "o",
+            Key::P => "p",
+            Key::Q => "q",
+            Key::R => "r",
+            Key::S => "s",
+            Key::T => "t",
+            Key::U => "u",
+            Key::V => "v",
+            Key::W => "w",
+            Key::X => "x",
+            Key::Y => "y",
+            Key::Z => "z",
+            Key::Key0 => "0",
+            Key::Key1 => "1",
+            Key::Key2 => "2",
+            Key::Key3 => "3",
+            Key::Key4 => "4",
+            Key::Key5 => "5",
+            Key::Key6 => "6",
+            Key::Key7 => "7",
+            Key::Key8 => "8",
+            Key::Key9 => "9",
+            Key::Space => "space",
+            Key::Escape => "escape",
+            Key::Enter => "enter",
+            Key::Tab => "tab",
+            Key::Backspace => "backspace",
+            Key::Ctrl => "ctrl",
+            Key::Shift => "shift",
+            Key::Alt => "alt",
+            Key::Up => "up",
+            Key::Down => "down",
+            Key::Left => "left",
+            Key::Right => "right",
+            Key::F1 => "f1",
+            Key::F2 => "f2",
+            Key::F3 => "f3",
+            Key::F4 => "f4",
+            Key::F5 => "f5",
+            Key::F6 => "f6",
+            Key::F7 => "f7",
+            Key::F8 => "f8",
+            Key::F9 => "f9",
+            Key::F10 => "f10",
+            Key::F11 => "f11",
+            Key::F12 => "f12",
+            Key::LeftClick => "left_click",
+            Key::RightClick => "right_click",
+            Key::MiddleClick => "middle_click",
+        }
+    }
+
+    /// Parse key from string
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "a" => Some(Key::A),
+            "b" => Some(Key::B),
+            "c" => Some(Key::C),
+            "d" => Some(Key::D),
+            "e" => Some(Key::E),
+            "f" => Some(Key::F),
+            "g" => Some(Key::G),
+            "h" => Some(Key::H),
+            "i" => Some(Key::I),
+            "j" => Some(Key::J),
+            "k" => Some(Key::K),
+            "l" => Some(Key::L),
+            "m" => Some(Key::M),
+            "n" => Some(Key::N),
+            "o" => Some(Key::O),
+            "p" => Some(Key::P),
+            "q" => Some(Key::Q),
+            "r" => Some(Key::R),
+            "s" => Some(Key::S),
+            "t" => Some(Key::T),
+            "u" => Some(Key::U),
+            "v" => Some(Key::V),
+            "w" => Some(Key::W),
+            "x" => Some(Key::X),
+            "y" => Some(Key::Y),
+            "z" => Some(Key::Z),
+            "0" => Some(Key::Key0),
+            "1" => Some(Key::Key1),
+            "2" => Some(Key::Key2),
+            "3" => Some(Key::Key3),
+            "4" => Some(Key::Key4),
+            "5" => Some(Key::Key5),
+            "6" => Some(Key::Key6),
+            "7" => Some(Key::Key7),
+            "8" => Some(Key::Key8),
+            "9" => Some(Key::Key9),
+            "space" => Some(Key::Space),
+            "escape" | "esc" => Some(Key::Escape),
+            "enter" | "return" => Some(Key::Enter),
+            "tab" => Some(Key::Tab),
+            "backspace" => Some(Key::Backspace),
+            "ctrl" | "control" => Some(Key::Ctrl),
+            "shift" => Some(Key::Shift),
+            "alt" => Some(Key::Alt),
+            "up" | "arrowup" => Some(Key::Up),
+            "down" | "arrowdown" => Some(Key::Down),
+            "left" | "arrowleft" => Some(Key::Left),
+            "right" | "arrowright" => Some(Key::Right),
+            "f1" => Some(Key::F1),
+            "f2" => Some(Key::F2),
+            "f3" => Some(Key::F3),
+            "f4" => Some(Key::F4),
+            "f5" => Some(Key::F5),
+            "f6" => Some(Key::F6),
+            "f7" => Some(Key::F7),
+            "f8" => Some(Key::F8),
+            "f9" => Some(Key::F9),
+            "f10" => Some(Key::F10),
+            "f11" => Some(Key::F11),
+            "f12" => Some(Key::F12),
+            "left_click" | "lmb" | "leftclick" | "mouse1" => Some(Key::LeftClick),
+            "right_click" | "rmb" | "rightclick" | "mouse2" => Some(Key::RightClick),
+            "middle_click" | "mmb" | "middleclick" | "mouse3" => Some(Key::MiddleClick),
+            _ => None,
+        }
+    }
 }
 
 /// Key bindings configuration
@@ -317,9 +490,19 @@ impl Keybinds {
         self.bindings.get(&action).copied()
     }
 
+    /// Get the key bound to an action (alias for get)
+    pub fn key_for_action(&self, action: Action) -> Option<Key> {
+        self.get(action)
+    }
+
     /// Set a key binding for an action
     pub fn set(&mut self, action: Action, key: Key) {
         self.bindings.insert(action, key);
+    }
+
+    /// Rebind an action to a new key (alias for set)
+    pub fn rebind(&mut self, action: Action, key: Key) {
+        self.set(action, key);
     }
 
     /// Find which action (if any) is bound to a key
@@ -365,9 +548,16 @@ pub const FOV_MAX: f32 = 110.0;
 pub const FOV_DEFAULT: f32 = 70.0;
 pub const FOV_STEP: f32 = 5.0;
 
+/// Current configuration version for migration support.
+pub const CONFIG_VERSION: &str = "1.0.0";
+
 /// Game configuration persisted to config.toml
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameConfig {
+    /// Configuration file version (for migration support)
+    #[serde(default = "default_config_version")]
+    pub config_version: String,
+
     /// Mouse sensitivity multiplier (0.0001 to 0.01)
     pub sensitivity: f32,
 
@@ -386,17 +576,27 @@ pub struct GameConfig {
     /// CEF UI configuration (Feature 030)
     #[serde(default)]
     pub ui: CefConfig,
+
+    /// Accessibility settings (Feature 042)
+    #[serde(default)]
+    pub accessibility: AccessibilityConfig,
+}
+
+fn default_config_version() -> String {
+    CONFIG_VERSION.to_string()
 }
 
 impl Default for GameConfig {
     fn default() -> Self {
         Self {
+            config_version: CONFIG_VERSION.to_string(),
             sensitivity: SENSITIVITY_DEFAULT,
             fov_degrees: FOV_DEFAULT,
             fullscreen: false,
             audio_muted: false,
             keybinds: Keybinds::default(),
             ui: CefConfig::default(),
+            accessibility: AccessibilityConfig::default(),
         }
     }
 }
@@ -408,6 +608,7 @@ impl GameConfig {
         self.fov_degrees = self.fov_degrees.clamp(FOV_MIN, FOV_MAX);
         self.keybinds.ensure_all_actions_bound();
         self.ui.validate();
+        self.accessibility.validate();
     }
 }
 

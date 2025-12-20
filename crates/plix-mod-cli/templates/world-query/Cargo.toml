@@ -1,0 +1,15 @@
+[package]
+name = "{{mod_id}}"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+plix-mod-sdk = "0.1"
+plix-mod-sdk-macros = "0.1"
+
+[profile.release]
+opt-level = "s"
+lto = true

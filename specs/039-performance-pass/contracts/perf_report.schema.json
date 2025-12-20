@@ -1,0 +1,286 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://plix.dev/schemas/perf_report.json",
+  "title": "PerfReport",
+  "description": "Performance profiling report for Plix server/client",
+  "type": "object",
+  "required": ["metadata", "tick_stats"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["timestamp", "scenario", "duration_secs", "tick_rate"],
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of run start"
+        },
+        "git_sha": {
+          "type": "string",
+          "description": "Git commit hash or 'unknown'"
+        },
+        "build_mode": {
+          "type": "string",
+          "enum": ["debug", "release"],
+          "description": "Build configuration"
+        },
+        "scenario": {
+          "type": "string",
+          "description": "Scenario name (idle, world_churn, net_stress)"
+        },
+        "duration_secs": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Total scenario duration in seconds"
+        },
+        "tick_rate": {
+          "type": "integer",
+          "minimum": 20,
+          "maximum": 60,
+          "description": "Configured ticks per second"
+        },
+        "player_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of connected/simulated players"
+        }
+      }
+    },
+    "tick_stats": {
+      "type": "object",
+      "required": ["count", "avg_ms", "p95_ms", "p99_ms"],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total ticks recorded"
+        },
+        "avg_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Mean tick time in milliseconds"
+        },
+        "p50_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Median tick time"
+        },
+        "p95_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "95th percentile tick time"
+        },
+        "p99_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "99th percentile tick time"
+        },
+        "max_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum tick time"
+        },
+        "overruns": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Ticks exceeding budget"
+        }
+      }
+    },
+    "subsystem_stats": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/SubsystemStats"
+      },
+      "description": "Per-subsystem timing breakdown"
+    },
+    "net_stats": {
+      "type": "object",
+      "properties": {
+        "total_kb_in": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total inbound bandwidth in KB"
+        },
+        "total_kb_out": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total outbound bandwidth in KB"
+        },
+        "avg_kbps_in": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Average inbound rate in KB/s"
+        },
+        "avg_kbps_out": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Average outbound rate in KB/s"
+        },
+        "by_message_type": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/MessageTypeStats"
+          },
+          "description": "Per-message-type breakdown"
+        }
+      }
+    },
+    "meshing_stats": {
+      "type": "object",
+      "properties": {
+        "chunks_built": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total chunks meshed"
+        },
+        "avg_ms_per_chunk": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Mean mesh time per chunk"
+        },
+        "p95_ms_per_chunk": {
+          "type": "number",
+          "minimum": 0,
+          "description": "95th percentile mesh time"
+        },
+        "max_ms_per_chunk": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum mesh time"
+        },
+        "deferred_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Chunks deferred due to budget"
+        },
+        "coalesced_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Edits coalesced"
+        }
+      }
+    },
+    "alloc_stats": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether allocation tracking was active"
+        },
+        "total_allocs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total allocations if enabled"
+        },
+        "total_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total bytes allocated if enabled"
+        },
+        "allocs_per_sec": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Allocation rate if enabled"
+        },
+        "hotspots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AllocHotspot"
+          },
+          "description": "Top allocation sites if enabled"
+        },
+        "note": {
+          "type": "string",
+          "description": "Instructions or notes"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "SubsystemStats": {
+      "type": "object",
+      "required": ["avg_ms", "p95_ms"],
+      "properties": {
+        "avg_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Mean time per tick"
+        },
+        "p95_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "95th percentile time"
+        },
+        "p99_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "99th percentile time"
+        },
+        "invocations": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of invocations"
+        }
+      }
+    },
+    "MessageTypeStats": {
+      "type": "object",
+      "required": ["count", "avg_bytes"],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total messages"
+        },
+        "total_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total bytes"
+        },
+        "avg_bytes": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Average message size"
+        },
+        "p95_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "95th percentile size"
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum size"
+        }
+      }
+    },
+    "AllocHotspot": {
+      "type": "object",
+      "required": ["location", "alloc_count"],
+      "properties": {
+        "location": {
+          "type": "string",
+          "description": "Source location"
+        },
+        "alloc_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of allocations"
+        },
+        "total_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total bytes allocated"
+        },
+        "percentage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Percentage of total"
+        }
+      }
+    }
+  }
+}

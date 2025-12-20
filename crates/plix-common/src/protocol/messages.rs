@@ -93,6 +93,93 @@ pub enum ClientMessage {
         /// New display name (will be validated server-side)
         new_name: String,
     },
+
+    // ========================================================================
+    // Chat Messages (Feature 032)
+    // ========================================================================
+    /// Send a chat message to the server for broadcast
+    ChatSend {
+        /// Message text (max 200 characters, validated server-side)
+        text: String,
+    },
+
+    // ========================================================================
+    // Mod Sync Messages (Feature 037)
+    // ========================================================================
+    /// Client response to ModSetDescriptor (sent after receiving ServerMessage::ModSet)
+    ModSetResponse(ModSetResponse),
+
+    /// Client acknowledges receipt of payload chunk(s)
+    PayloadAck(PayloadAck),
+
+    /// Client confirms payload transfer complete
+    PayloadComplete {
+        /// Mod ID that completed
+        mod_id: String,
+        /// Whether verification succeeded
+        success: bool,
+        /// Error message if verification failed
+        error: Option<String>,
+    },
+
+    // ========================================================================
+    // Quest System Messages (Feature 043)
+    // ========================================================================
+    /// Request to accept a quest from NPC
+    QuestAccept {
+        /// Quest identifier to accept
+        quest_id: String,
+    },
+
+    /// Request to abandon an active quest
+    QuestAbandon {
+        /// Quest identifier to abandon
+        quest_id: String,
+    },
+
+    /// Set pinned quest for tracker HUD
+    QuestPin {
+        /// Quest ID to pin (None to unpin)
+        quest_id: Option<String>,
+    },
+
+    /// Request full quest state sync
+    QuestSyncRequest,
+
+    // ========================================================================
+    // Mob/Loot System Messages (Feature 043)
+    // ========================================================================
+    /// Attempt to pick up loot from ground
+    LootPickup {
+        /// Loot entity ID
+        loot_id: u64,
+    },
+
+    // ========================================================================
+    // Dungeon System Messages (Feature 043)
+    // ========================================================================
+    /// Attempt to open reward chest
+    ChestOpen {
+        /// Chest entity ID
+        chest_id: u64,
+    },
+
+    // ========================================================================
+    // NPC/Dialogue System Messages (Feature 043)
+    // ========================================================================
+    /// Interact with an NPC
+    NpcInteract {
+        /// NPC identifier
+        npc_id: String,
+    },
+
+    /// Respond to dialogue
+    DialogueResponse {
+        /// NPC identifier
+        npc_id: String,
+        /// Selected option ID
+        option_id: String,
+    },
 }
 
 // ============================================================================
@@ -282,6 +369,89 @@ pub enum ServerMessage {
 
     /// Inventory update for a player
     InventoryUpdate(InventorySnapshot),
+
+    // ========================================================================
+    // Mod Sync Messages (Feature 037)
+    // ========================================================================
+    /// Server's mod set description (sent after Connected)
+    ModSet(ModSetDescriptor),
+
+    /// Server's decision on whether to allow connection based on mod sync
+    JoinDecision(JoinDecision),
+
+    /// Begin payload transfer for a mod
+    PayloadBegin(PayloadBegin),
+
+    /// Payload data chunk
+    PayloadChunk(PayloadChunk),
+
+    /// End of payload transfer for a mod
+    PayloadEnd(PayloadEnd),
+
+    /// Mod sync failed (connection will be closed)
+    ModSyncFailed {
+        /// Reason for failure
+        reason: ModSyncRejectReason,
+        /// Human-readable error message
+        message: String,
+    },
+
+    // ========================================================================
+    // Quest System Messages (Feature 043)
+    // ========================================================================
+    /// Full quest state sync (on connect or major changes)
+    QuestSync(QuestSyncPayload),
+
+    /// Incremental quest update
+    QuestUpdate(QuestUpdatePayload),
+
+    /// Quest notification (toast/popup)
+    QuestNotification(QuestNotificationPayload),
+
+    /// Quest tracker HUD update
+    QuestTrackerUpdate(QuestTrackerPayload),
+
+    // ========================================================================
+    // Mob System Messages (Feature 043)
+    // ========================================================================
+    /// Mob spawned in view
+    MobSpawned(MobSpawnPayload),
+
+    /// Mob state update (position, HP, target)
+    MobUpdate(MobUpdatePayload),
+
+    /// Mob took damage
+    MobDamaged(MobDamagedPayload),
+
+    /// Mob died
+    MobDied(MobDiedPayload),
+
+    /// Loot dropped from mob
+    MobLootDropped(MobLootDropPayload),
+
+    /// XP/credit reward granted
+    RewardGranted(RewardPayload),
+
+    // ========================================================================
+    // Dungeon System Messages (Feature 043)
+    // ========================================================================
+    /// Player entered dungeon area
+    DungeonEntered(DungeonEnteredPayload),
+
+    /// Dungeon state update
+    DungeonStateUpdate(DungeonStatePayload),
+
+    /// Dungeon completed notification
+    DungeonCompleted(DungeonCompletedPayload),
+
+    /// Reward chest available
+    ChestAvailable(ChestAvailablePayload),
+
+    // ========================================================================
+    // NPC/Dialogue Messages (Feature 043)
+    // ========================================================================
+    /// Show NPC dialogue to player
+    DialogueShow(DialogueShowPayload),
 }
 
 /// Complete world snapshot sent to clients
@@ -876,6 +1046,23 @@ pub enum GameEvent {
         /// New display name
         new_name: String,
     },
+
+    // ========================================================================
+    // Chat Events (Feature 032)
+    // ========================================================================
+    /// Chat message received (broadcast to all clients)
+    ChatReceived {
+        /// Sender's player ID (None for system messages)
+        sender_id: Option<PlayerId>,
+        /// Sender's display name
+        sender_name: String,
+        /// Message content
+        text: String,
+        /// Message kind (player or system)
+        kind: crate::chat::ChatMessageKind,
+        /// Server timestamp (Unix seconds)
+        timestamp: u64,
+    },
 }
 
 // ============================================================================
@@ -960,3 +1147,442 @@ pub struct ShopOfferInfo {
 
 // Re-export PurchaseRejectReason from economy module
 pub use crate::economy::PurchaseRejectReason;
+
+// ============================================================================
+// Mod Sync Types (Feature 037: Server Mods + Client Sync)
+// ============================================================================
+
+/// Description of a single mod on the server
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModDescriptor {
+    /// Mod identifier
+    pub id: String,
+    /// Mod version
+    pub version: String,
+    /// SHA-256 hash of client payload (hex, 64 chars)
+    /// None if mod has no client payload
+    pub client_payload_hash: Option<String>,
+    /// Size of client payload in bytes
+    pub client_payload_size: u64,
+    /// Whether this mod has network channels
+    pub has_network_channels: bool,
+}
+
+/// Server's complete mod set description (sent after Connect accepted)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModSetDescriptor {
+    /// All mods running on this server
+    pub mods: Vec<ModDescriptor>,
+    /// Total size of all payloads in bytes
+    pub total_payload_size: u64,
+    /// Server's join policy
+    pub policy: ModJoinPolicy,
+}
+
+/// Join policy communicated to clients
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct ModJoinPolicy {
+    /// Server allows clients without sync support
+    pub allow_server_only: bool,
+    /// Server allows payload sync
+    pub allow_payload_sync: bool,
+    /// Server requires payload sync (rejects unsupported clients)
+    pub require_payload_sync: bool,
+}
+
+/// Client's capabilities and cached payload info (response to ModSetDescriptor)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModSetResponse {
+    /// Client supports payload sync
+    pub supports_sync: bool,
+    /// SHA-256 hashes of payloads the client already has cached
+    pub cached_hashes: Vec<String>,
+    /// Client engine version (for compatibility checking)
+    pub engine_version: Option<String>,
+}
+
+/// Server's decision on whether to proceed with connection
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JoinDecision {
+    /// Whether the connection is allowed
+    pub allowed: bool,
+    /// Reason if rejected
+    pub rejection_reason: Option<String>,
+    /// Mods that need to be synced (payloads to send)
+    pub mods_to_sync: Vec<String>,
+}
+
+/// Begin payload transfer for a mod
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadBegin {
+    /// Mod ID being transferred
+    pub mod_id: String,
+    /// Total size of payload in bytes
+    pub total_size: u64,
+    /// Total number of chunks
+    pub chunk_count: u32,
+    /// SHA-256 hash of complete payload (hex, 64 chars)
+    pub sha256: String,
+}
+
+/// A single chunk of mod payload data
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadChunk {
+    /// Mod ID this chunk belongs to
+    pub mod_id: String,
+    /// Chunk index (0-based)
+    pub chunk_index: u32,
+    /// Chunk data (binary, up to chunk_size_kb from config)
+    pub data: Vec<u8>,
+}
+
+/// Acknowledge receipt of chunk(s)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadAck {
+    /// Mod ID
+    pub mod_id: String,
+    /// Index of last received chunk
+    pub last_chunk_index: u32,
+    /// Whether all chunks have been received
+    pub complete: bool,
+}
+
+/// End of payload transfer for a mod
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadEnd {
+    /// Mod ID that finished transferring
+    pub mod_id: String,
+    /// Whether transfer was successful
+    pub success: bool,
+    /// Error message if failed
+    pub error: Option<String>,
+}
+
+/// Reason for mod sync failure
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ModSyncRejectReason {
+    /// Client doesn't support sync but server requires it
+    SyncNotSupported,
+    /// Payload too large for client
+    PayloadTooLarge,
+    /// Hash verification failed
+    HashMismatch,
+    /// Transfer timed out
+    Timeout,
+    /// Client rejected mods
+    ClientRejected,
+}
+
+// ============================================================================
+// Quest System Types (Feature 043)
+// ============================================================================
+
+/// Full quest state sync (sent on connect or major changes)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuestSyncPayload {
+    /// All active quests with progress
+    pub active_quests: Vec<ActiveQuestInfo>,
+    /// IDs of completed quests
+    pub completed_quest_ids: Vec<String>,
+    /// Currently pinned quest ID (for tracker HUD)
+    pub pinned_quest_id: Option<String>,
+}
+
+/// Information about an active quest
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActiveQuestInfo {
+    /// Quest identifier
+    pub quest_id: String,
+    /// Display title
+    pub title: String,
+    /// Description
+    pub description: String,
+    /// Current step index (0-indexed)
+    pub current_step_index: usize,
+    /// All steps with progress
+    pub steps: Vec<QuestStepInfo>,
+}
+
+/// Information about a quest step
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuestStepInfo {
+    /// Human-readable description
+    pub description: String,
+    /// Progress information
+    pub progress: StepProgressInfo,
+    /// Whether this step is completed
+    pub completed: bool,
+}
+
+/// Progress information for a quest step
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum StepProgressInfo {
+    /// Counter-based progress (e.g., "3/5 rats killed")
+    Counter { current: u32, required: u32 },
+    /// Boolean progress (e.g., "visited location")
+    Boolean { done: bool },
+}
+
+/// Incremental quest update
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuestUpdatePayload {
+    /// Quest being updated
+    pub quest_id: String,
+    /// Type of update
+    pub update_type: QuestUpdateType,
+}
+
+/// Types of quest updates
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum QuestUpdateType {
+    /// Quest started
+    Started {
+        title: String,
+        steps: Vec<QuestStepInfo>,
+    },
+    /// Step progress changed
+    StepProgress {
+        step_index: usize,
+        progress: StepProgressInfo,
+    },
+    /// Step completed
+    StepCompleted { step_index: usize },
+    /// Quest completed
+    Completed { rewards: QuestRewardsInfo },
+    /// Quest abandoned
+    Abandoned,
+}
+
+/// Quest rewards information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuestRewardsInfo {
+    /// XP awarded
+    pub xp: u32,
+    /// Currency awarded
+    pub currency: u32,
+    /// Items awarded (item_name, count)
+    pub items: Vec<(String, u32)>,
+}
+
+/// Quest notification (toast/popup)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuestNotificationPayload {
+    /// Type of notification
+    pub notification_type: QuestNotificationType,
+    /// Quest title
+    pub quest_title: String,
+    /// Additional details
+    pub details: Option<String>,
+}
+
+/// Types of quest notifications
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum QuestNotificationType {
+    /// Quest started
+    Started,
+    /// Step completed
+    StepCompleted,
+    /// Quest completed
+    QuestCompleted,
+    /// Quest failed
+    Failed,
+}
+
+/// Quest tracker HUD update
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuestTrackerPayload {
+    /// Pinned quest ID (None if no quest pinned)
+    pub quest_id: Option<String>,
+    /// Quest title
+    pub quest_title: Option<String>,
+    /// Current step description
+    pub current_step_description: Option<String>,
+    /// Current step progress
+    pub current_step_progress: Option<StepProgressInfo>,
+}
+
+// ============================================================================
+// Mob System Types (Feature 043)
+// ============================================================================
+
+/// Mob spawned in view
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MobSpawnPayload {
+    /// Unique runtime instance ID
+    pub instance_id: u64,
+    /// Mob definition ID
+    pub mob_def_id: String,
+    /// Display name
+    pub display_name: String,
+    /// World position
+    pub position: [f32; 3],
+    /// Current HP
+    pub hp: u32,
+    /// Maximum HP
+    pub max_hp: u32,
+}
+
+/// Mob state update
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MobUpdatePayload {
+    /// Instance ID
+    pub instance_id: u64,
+    /// Current position
+    pub position: [f32; 3],
+    /// Current HP
+    pub hp: u32,
+    /// Target player ID (for aggro indicator)
+    pub target_player_id: Option<u32>,
+}
+
+/// Mob took damage
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MobDamagedPayload {
+    /// Instance ID
+    pub instance_id: u64,
+    /// Damage dealt
+    pub damage: u32,
+    /// New HP after damage
+    pub new_hp: u32,
+    /// Attacker player ID
+    pub attacker_id: u32,
+}
+
+/// Mob died
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MobDiedPayload {
+    /// Instance ID
+    pub instance_id: u64,
+    /// Last-hit player ID (None for environmental death)
+    pub killer_id: Option<u32>,
+    /// Death position
+    pub position: [f32; 3],
+}
+
+/// Loot dropped from mob
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MobLootDropPayload {
+    /// Unique loot entity ID
+    pub loot_id: u64,
+    /// Item identifier
+    pub item_id: String,
+    /// Display name
+    pub item_name: String,
+    /// Quantity
+    pub quantity: u32,
+    /// World position
+    pub position: [f32; 3],
+}
+
+/// XP/credit reward notification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RewardPayload {
+    /// Type of reward
+    pub reward_type: RewardType,
+    /// Amount rewarded
+    pub amount: u32,
+    /// Source description (e.g., "Cave Rat", "Quest: Clear Rats")
+    pub source: String,
+}
+
+/// Types of rewards
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RewardType {
+    /// Experience points
+    Xp,
+    /// Currency/credits
+    Currency,
+}
+
+// ============================================================================
+// Dungeon System Types (Feature 043)
+// ============================================================================
+
+/// Player entered dungeon area
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DungeonEnteredPayload {
+    /// Dungeon identifier
+    pub dungeon_id: String,
+    /// Display name
+    pub display_name: String,
+    /// Current objective (e.g., "Defeat the Gate Warden")
+    pub objective: String,
+}
+
+/// Dungeon state update
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DungeonStatePayload {
+    /// Dungeon identifier
+    pub dungeon_id: String,
+    /// Whether boss is alive
+    pub boss_alive: bool,
+    /// Boss HP percentage (None if boss not visible)
+    pub boss_hp_percent: Option<f32>,
+    /// Whether reward chest is available
+    pub chest_available: bool,
+}
+
+/// Dungeon completed notification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DungeonCompletedPayload {
+    /// Dungeon identifier
+    pub dungeon_id: String,
+    /// Display name
+    pub display_name: String,
+    /// Rewards received (item_name, count)
+    pub rewards: Vec<(String, u32)>,
+    /// XP gained
+    pub xp_gained: u32,
+}
+
+/// Reward chest available
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChestAvailablePayload {
+    /// Unique chest entity ID
+    pub chest_id: u64,
+    /// World position
+    pub position: [f32; 3],
+    /// Associated dungeon ID
+    pub dungeon_id: String,
+}
+
+// ============================================================================
+// NPC/Dialogue System Types (Feature 043)
+// ============================================================================
+
+/// Show NPC dialogue to player
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DialogueShowPayload {
+    /// NPC identifier
+    pub npc_id: String,
+    /// NPC display name
+    pub npc_name: String,
+    /// Dialogue lines to show
+    pub lines: Vec<String>,
+    /// Available response options
+    pub options: Vec<DialogueOption>,
+}
+
+/// A dialogue response option
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DialogueOption {
+    /// Option identifier
+    pub option_id: String,
+    /// Display text
+    pub text: String,
+    /// Option type (for styling)
+    pub option_type: DialogueOptionType,
+}
+
+/// Types of dialogue options
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DialogueOptionType {
+    /// Accept a quest
+    AcceptQuest,
+    /// Decline a quest
+    DeclineQuest,
+    /// Close dialogue
+    Close,
+    /// Continue conversation
+    Continue,
+}

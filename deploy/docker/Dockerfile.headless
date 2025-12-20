@@ -1,0 +1,138 @@
+# =============================================================================
+# Plix Headless Server Dockerfile
+# Feature 041: Cross-Platform Packaging & Headless Server
+# =============================================================================
+#
+# Multi-stage build optimized for the headless server binary.
+#
+# Build:
+#   docker build -t plix-server-headless -f deploy/docker/Dockerfile.headless .
+#
+# Run:
+#   docker run -d -p 7777:7777/udp plix-server-headless
+#
+# With volumes:
+#   docker run -d \
+#     -p 7777:7777/udp \
+#     -v $(pwd)/data/world:/data/world \
+#     -v $(pwd)/data/mods:/data/mods \
+#     -v $(pwd)/config:/config:ro \
+#     plix-server-headless
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Builder
+# Compiles plix-server-headless in release mode
+# -----------------------------------------------------------------------------
+FROM rust:1.83-slim-bookworm AS builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Copy manifests first for better caching
+COPY Cargo.toml Cargo.lock ./
+COPY crates/plix-common/Cargo.toml crates/plix-common/
+COPY crates/plix-net/Cargo.toml crates/plix-net/
+COPY crates/plix-server/Cargo.toml crates/plix-server/
+COPY crates/plix-arena/Cargo.toml crates/plix-arena/
+COPY crates/plix-mod-core/Cargo.toml crates/plix-mod-core/
+COPY crates/plix-mod-runtime-wasm/Cargo.toml crates/plix-mod-runtime-wasm/
+COPY crates/plix-mod-distribution/Cargo.toml crates/plix-mod-distribution/
+
+# Create dummy source files for dependency caching
+RUN mkdir -p crates/plix-common/src && echo "pub fn dummy() {}" > crates/plix-common/src/lib.rs && \
+    mkdir -p crates/plix-net/src && echo "pub fn dummy() {}" > crates/plix-net/src/lib.rs && \
+    mkdir -p crates/plix-server/src/bin && \
+    echo "fn main() {}" > crates/plix-server/src/main.rs && \
+    echo "fn main() {}" > crates/plix-server/src/bin/plix-server-headless.rs && \
+    echo "pub fn dummy() {}" > crates/plix-server/src/lib.rs && \
+    mkdir -p crates/plix-arena/src && echo "pub fn dummy() {}" > crates/plix-arena/src/lib.rs && \
+    mkdir -p crates/plix-mod-core/src && echo "pub fn dummy() {}" > crates/plix-mod-core/src/lib.rs && \
+    mkdir -p crates/plix-mod-runtime-wasm/src && echo "pub fn dummy() {}" > crates/plix-mod-runtime-wasm/src/lib.rs && \
+    mkdir -p crates/plix-mod-distribution/src && echo "pub fn dummy() {}" > crates/plix-mod-distribution/src/lib.rs
+
+# Build dependencies only (cached layer)
+RUN cargo build --release --bin plix-server-headless 2>/dev/null || true
+
+# Copy actual source code
+COPY crates/ crates/
+COPY assets/ assets/
+
+# Touch files to ensure rebuild of actual source
+RUN find crates -name "*.rs" -exec touch {} \;
+
+# Build the headless server binary
+RUN cargo build --release --bin plix-server-headless
+
+# Strip binary for smaller image (optional, preserves debug symbols if needed)
+RUN strip target/release/plix-server-headless || true
+
+# -----------------------------------------------------------------------------
+# Stage 2: Runtime
+# Minimal image with only the binary and required files
+# -----------------------------------------------------------------------------
+FROM debian:bookworm-slim
+
+# Labels
+LABEL org.opencontainers.image.title="Plix Headless Server"
+LABEL org.opencontainers.image.description="Production-ready headless game server for Plix"
+LABEL org.opencontainers.image.vendor="Plix"
+
+# Install minimal runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user (UID 1000 for common host mapping)
+RUN groupadd -g 1000 plix && \
+    useradd -u 1000 -g plix -m -s /bin/bash plix
+
+# Create data directories with correct ownership
+# Following the contract from contracts/packaging.md
+RUN mkdir -p /app /data/world /data/mods /config && \
+    chown -R plix:plix /app /data /config
+
+# Copy binary from builder
+COPY --from=builder /build/target/release/plix-server-headless /app/plix-server-headless
+
+# Copy default configs
+COPY --chown=plix:plix deploy/configs/examples/server.toml /config/server.toml.default
+COPY --chown=plix:plix deploy/configs/examples/server_mods.toml /config/server_mods.toml.default
+
+# Copy assets (arenas required for gameplay)
+COPY --chown=plix:plix assets/ /app/assets/
+
+# Set working directory
+WORKDIR /app
+
+# Switch to non-root user
+USER plix
+
+# Default environment variables
+ENV PLIX_CONFIG=/config/server.toml \
+    PLIX_LOG_LEVEL=info \
+    RUST_BACKTRACE=1
+
+# Expose game port (UDP)
+# Contract specifies port 7777
+EXPOSE 7777/udp
+
+# Volume mounts for persistence
+# Following contracts/packaging.md Docker Contract
+VOLUME ["/data/world", "/data/mods"]
+
+# Health check - verify binary can run
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD ["/app/plix-server-headless", "--help"]
+
+# Use ENTRYPOINT for proper signal handling
+# This ensures SIGTERM is forwarded correctly for graceful shutdown
+ENTRYPOINT ["/app/plix-server-headless"]
+
+# Default arguments - use config from /config mount
+CMD ["--config", "/config/server.toml"]

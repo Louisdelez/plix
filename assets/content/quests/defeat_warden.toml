@@ -1,0 +1,33 @@
+# Quest: Defeat the Gate Warden
+# Final boss quest of Chapter 1
+
+quest_id = "defeat_warden"
+title = "The Gate Warden"
+description_short = "Defeat the Gate Warden and seal the crypt"
+description_long = """
+The time has come to confront the Gate Warden. This ancient guardian was once
+a protector of the realm, but centuries of corruption have twisted it into
+a monster. Defeat it and claim the treasure within its chamber to prove your
+victory.
+
+Be warned - the Warden is no ordinary foe. Prepare well before entering.
+"""
+chapter_id = "the_broken_gate"
+repeatable = false
+
+[prerequisites]
+completed_quests = ["find_crypt"]
+
+[[steps]]
+type = "DungeonClear"
+dungeon_id = "crypt_of_the_gate"
+description = "Defeat the Gate Warden and loot the reward chest"
+
+[[steps]]
+type = "TalkToNpc"
+npc_id = "village_elder"
+description = "Return victorious to Elder Theron"
+
+[rewards]
+xp = 500
+currency = 250

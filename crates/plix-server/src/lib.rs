@@ -12,19 +12,30 @@
 pub mod anti_cheat;
 pub mod block_physics;
 pub mod br_lite;
+pub mod config;
+pub mod content;
 pub mod crafting;
 pub mod ctf;
+pub mod dungeon;
 pub mod economy;
+pub mod exit_codes;
 pub mod identity;
 pub mod inventory;
 pub mod loot;
 pub mod master_announce;
 pub mod match_state;
+pub mod mob;
 pub mod metrics;
+pub mod mods;
 pub mod netloop;
+pub mod npc;
+pub mod perf;
 pub mod persist;
+pub mod quest;
 pub mod replication;
+pub mod security;
 pub mod session;
+pub mod shutdown;
 pub mod sim;
 pub mod tick;
 pub mod training;
@@ -81,7 +92,11 @@ use crate::weapons::{
     ProjectileManager,
 };
 use plix_common::inventory::{ItemId, WeaponType};
+use plix_common::protocol::messages::{
+    JoinDecision, ModSetDescriptor, ModSetResponse, ModSyncRejectReason, PayloadAck,
+};
 use plix_common::protocol::{CraftRejectReason, InventorySnapshot, SlotSnapshot};
+use plix_mod_distribution::{JoinPolicy, SyncConfig};
 
 /// Server errors
 #[derive(Debug, Error)]
@@ -197,6 +212,8 @@ pub struct Server {
     next_session_id: u64,
     /// Heartbeat state for master server announcements
     heartbeat_state: std::sync::Arc<master_announce::heartbeat::HeartbeatState>,
+    /// Pending mod handshake connections (Feature 037)
+    pending_mod_handshakes: HashMap<SocketAddr, mods::PendingModConnection>,
 }
 
 impl Server {
@@ -462,6 +479,7 @@ impl Server {
             name_registry: NameRegistry::new(),
             next_session_id: 1,
             heartbeat_state: master_announce::heartbeat::HeartbeatState::new(),
+            pending_mod_handshakes: HashMap::new(),
         })
     }
 
@@ -1421,7 +1439,51 @@ impl Server {
             ClientMessage::RenameRequest { new_name } => {
                 self.handle_rename_request(from, new_name).await;
             }
+
+            // Chat messages (Feature 034 - Mod API)
+            ClientMessage::ChatSend { text } => {
+                self.handle_chat_send(from, text).await;
+            }
+
+            // Mod sync messages (Feature 037)
+            ClientMessage::ModSetResponse(response) => {
+                self.handle_mod_set_response(from, response).await;
+            }
+            ClientMessage::PayloadAck(ack) => {
+                self.handle_payload_ack(from, ack).await;
+            }
+            ClientMessage::PayloadComplete {
+                mod_id,
+                success,
+                error,
+            } => {
+                self.handle_payload_complete(from, &mod_id, success, error.as_deref())
+                    .await;
+            }
         }
+    }
+
+    /// Handle chat send message from player
+    async fn handle_chat_send(&mut self, from: SocketAddr, text: String) {
+        // Get player info
+        let player_info = match self.sessions.get_by_addr(&from) {
+            Some(p) => (p.session_id, p.name.clone()),
+            None => return,
+        };
+
+        // Validate text length
+        if text.len() > 200 || text.is_empty() {
+            return;
+        }
+
+        // TODO: Integrate with mod system for chat filtering/cancellation
+        // For now, just log the chat message
+        tracing::debug!(
+            player_id = %player_info.0,
+            player_name = %player_info.1,
+            text = %text,
+            "Chat message received"
+        );
     }
 
     /// Handle ready toggle message from player
@@ -2372,7 +2434,7 @@ impl Server {
         );
     }
 
-    /// Handle a connection request
+    /// Handle a connection request (Feature 037: includes mod handshake)
     async fn handle_connect(&mut self, from: SocketAddr, protocol_version: u8, name: String) {
         info!(from = %from, name = %name, version = protocol_version, "Connection request");
 
@@ -2417,9 +2479,13 @@ impl Server {
             return;
         }
 
-        // Check for duplicate connection
+        // Check for duplicate connection or pending handshake
         if self.sessions.get_by_addr(&from).is_some() {
             debug!(from = %from, "Duplicate connection attempt");
+            return;
+        }
+        if self.pending_mod_handshakes.contains_key(&from) {
+            debug!(from = %from, "Duplicate connection attempt (pending handshake)");
             return;
         }
 
@@ -2440,19 +2506,17 @@ impl Server {
             TeamId::TEAM_1
         };
 
-        // Generate unique session ID (T022)
+        // Generate unique session ID
         let session_id = SessionId::new(self.next_session_id);
         self.next_session_id += 1;
 
         // Create a temporary PlayerId for name registration
-        // We need to get the player_id first to register the name
         let temp_player_id = PlayerId(self.sessions.count() as u16 + 1);
 
-        // Register and validate display name via NameRegistry (T023)
+        // Register and validate display name via NameRegistry
         let display_name = match self.name_registry.register(temp_player_id, &name) {
             Some(assigned_name) => assigned_name,
             None => {
-                // Max suffix exhaustion - reject connection
                 let msg = ServerMessage::Rejected {
                     reason: "Server full for this name (too many players with similar names)"
                         .to_string(),
@@ -2462,6 +2526,154 @@ impl Server {
             }
         };
 
+        // Unregister temp_player_id since we'll re-register after actual player creation
+        self.name_registry.unregister(temp_player_id);
+
+        // Feature 037: Create pending mod handshake connection
+        // Get join policy and sync config (use defaults if mod distribution not configured)
+        let join_policy = JoinPolicy::default();
+        let sync_config = SyncConfig::default();
+
+        // Get mods with client payloads (empty if no mod manager)
+        let mods_with_payloads: Vec<mods::ModInfo> = Vec::new(); // No mods for MVP
+
+        // Create pending connection
+        let pending = mods::PendingModConnection::new(
+            from,
+            name.clone(),
+            display_name.clone(),
+            team,
+            session_id,
+            join_policy,
+            sync_config,
+            mods_with_payloads,
+        );
+
+        // Build and send ModSetDescriptor
+        let mod_set = pending.sync_session.build_mod_set_descriptor();
+        info!(
+            from = %from,
+            mod_count = mod_set.mods.len(),
+            total_size = mod_set.total_payload_size,
+            "Sending ModSetDescriptor"
+        );
+
+        // Store pending connection
+        self.pending_mod_handshakes.insert(from, pending);
+
+        // Send ModSet message
+        let msg = ServerMessage::ModSet(mod_set);
+        let _ = self.send_message(from, msg).await;
+    }
+
+    /// Handle ModSetResponse from client (Feature 037)
+    async fn handle_mod_set_response(&mut self, from: SocketAddr, response: ModSetResponse) {
+        // Get pending connection
+        let pending = match self.pending_mod_handshakes.get_mut(&from) {
+            Some(p) => p,
+            None => {
+                debug!(from = %from, "ModSetResponse from unknown client");
+                return;
+            }
+        };
+
+        // Process response and get join decision
+        let decision = pending.handle_response(response);
+
+        info!(
+            from = %from,
+            allowed = decision.allowed,
+            mods_to_sync = decision.mods_to_sync.len(),
+            "Join decision made"
+        );
+
+        // Send JoinDecision
+        let msg = ServerMessage::JoinDecision(decision.clone());
+        let _ = self.send_message(from, msg).await;
+
+        if !decision.allowed {
+            // Remove pending and reject
+            if let Some(pending) = self.pending_mod_handshakes.remove(&from) {
+                warn!(
+                    from = %from,
+                    reason = ?decision.rejection_reason,
+                    "Connection rejected by mod policy"
+                );
+            }
+            return;
+        }
+
+        // If no sync needed (empty mods_to_sync), finalize connection immediately
+        if decision.mods_to_sync.is_empty() {
+            // Remove pending and finalize
+            if let Some(pending) = self.pending_mod_handshakes.remove(&from) {
+                self.finalize_connection(pending).await;
+            }
+        }
+        // Otherwise, wait for payload sync to complete
+    }
+
+    /// Handle PayloadAck from client (Feature 037)
+    async fn handle_payload_ack(&mut self, from: SocketAddr, ack: PayloadAck) {
+        if let Some(pending) = self.pending_mod_handshakes.get_mut(&from) {
+            pending.handle_payload_ack(ack);
+
+            // Check if sync is complete
+            if pending.is_ready_to_join() {
+                if let Some(pending) = self.pending_mod_handshakes.remove(&from) {
+                    info!(from = %from, "Payload sync complete");
+                    self.finalize_connection(pending).await;
+                }
+            }
+        }
+    }
+
+    /// Handle PayloadComplete from client (Feature 037)
+    async fn handle_payload_complete(
+        &mut self,
+        from: SocketAddr,
+        mod_id: &str,
+        success: bool,
+        error: Option<&str>,
+    ) {
+        if let Some(pending) = self.pending_mod_handshakes.get_mut(&from) {
+            pending.handle_payload_complete(mod_id, success, error);
+
+            if !success {
+                // Sync failed
+                if let Some(pending) = self.pending_mod_handshakes.remove(&from) {
+                    warn!(from = %from, mod_id = %mod_id, error = ?error, "Payload verification failed");
+                    let msg = ServerMessage::ModSyncFailed {
+                        reason: ModSyncRejectReason::HashMismatch,
+                        message: error.unwrap_or("Hash verification failed").to_string(),
+                    };
+                    let _ = self.send_message(from, msg).await;
+                }
+                return;
+            }
+
+            // Check if all syncs complete
+            if pending.is_ready_to_join() {
+                if let Some(pending) = self.pending_mod_handshakes.remove(&from) {
+                    info!(from = %from, "All payloads verified, finalizing connection");
+                    self.finalize_connection(pending).await;
+                }
+            }
+        }
+    }
+
+    /// Finalize connection after mod handshake completes (Feature 037)
+    async fn finalize_connection(&mut self, pending: mods::PendingModConnection) {
+        let from = pending.addr;
+        let name = pending.name;
+        let display_name = pending.display_name;
+        let team = pending.team;
+        let session_id = pending.session_id;
+
+        // Re-register display name with actual player ID
+        let temp_player_id = PlayerId(self.sessions.count() as u16 + 1);
+        let _ = self.name_registry.register(temp_player_id, &display_name);
+
         // Add player with assigned display name and session ID
         let player_id = match self
             .sessions
@@ -2469,7 +2681,6 @@ impl Server {
         {
             Some(id) => id,
             None => {
-                // Rollback name registration
                 self.name_registry.unregister(temp_player_id);
                 let msg = ServerMessage::Rejected {
                     reason: "Failed to create player session".to_string(),
@@ -2481,7 +2692,6 @@ impl Server {
 
         // Update name registry with actual player ID if different
         if player_id != temp_player_id {
-            // Need to re-register with correct ID
             self.name_registry.unregister(temp_player_id);
             let _ = self.name_registry.register(player_id, &display_name);
         }
@@ -2498,7 +2708,6 @@ impl Server {
             }
         }
 
-        // Structured logging with session_id and display_name (T028)
         info!(
             player_id = player_id.0,
             session_id = session_id.0,
@@ -2506,10 +2715,10 @@ impl Server {
             requested_name = %name,
             team = team.0,
             from = %from,
-            "Player connected"
+            "Player connected (mod handshake complete)"
         );
 
-        // Send Connected response with display_name and session_id (T024)
+        // Send Connected response
         let msg = ServerMessage::Connected {
             player_id,
             tick: self.current_tick,
@@ -2531,6 +2740,11 @@ impl Server {
 
     /// Handle a disconnect request
     async fn handle_disconnect(&mut self, from: SocketAddr) {
+        // Clean up pending mod handshake if any (Feature 037)
+        if self.pending_mod_handshakes.remove(&from).is_some() {
+            debug!(from = %from, "Pending mod handshake cancelled (disconnect)");
+        }
+
         if let Some(player) = self.sessions.get_by_addr(&from) {
             let player_id = player.id;
             let session_id = player.session_id;

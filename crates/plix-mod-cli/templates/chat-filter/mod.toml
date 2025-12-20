@@ -1,0 +1,9 @@
+id = "{{mod_id}}"
+name = "{{mod_name}}"
+version = "0.1.0"
+api_version = 1
+author = "{{author}}"
+description = "A chat filter mod for Plix"
+
+[capabilities]
+event_cancel_chat = true

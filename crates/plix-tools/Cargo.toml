@@ -20,3 +20,6 @@ tracing-subscriber = { workspace = true }
 clap = { workspace = true }
 rand = { workspace = true }
 thiserror = { workspace = true }
+
+[build-dependencies]
+shadow-rs = "0.35"

@@ -34,8 +34,13 @@
 
 pub mod bridge;
 mod config;
+pub mod dialogue;
+pub mod dungeon;
+pub mod embeds;
+pub mod ingame;
 mod input;
 pub mod menus;
+pub mod quest;
 
 pub use config::CefConfig;
 pub use input::InputFocus;

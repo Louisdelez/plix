@@ -1,0 +1,52 @@
+# Plix Server Configuration
+#
+# This is an example configuration file for the plix-server-headless binary.
+# Copy this file to your desired location and modify as needed.
+#
+# Usage:
+#   ./plix-server-headless --config server.toml
+#
+# All values shown are defaults unless otherwise noted.
+
+[network]
+# IP address to bind the server to
+# Use "0.0.0.0" to accept connections from any interface
+bind_address = "0.0.0.0"
+
+# UDP port for game traffic
+# Default game port; change if running multiple servers
+port = 7777
+
+# Maximum number of concurrent players
+# Valid range: 1-128
+max_players = 32
+
+[game]
+# Server tick rate in Hz (updates per second)
+# Valid range: 20-60, higher = smoother but more CPU
+tick_rate = 30
+
+# Arena definition to load
+# Must be a valid arena name from assets/arenas/
+arena = "ffa_small"
+
+[server]
+# Display name shown in server browser
+name = "My Plix Server"
+
+# Message of the day shown to players on join
+motd = "Welcome to the server!"
+
+[logging]
+# Logging verbosity level
+# Options: trace, debug, info, warn, error
+level = "info"
+
+[persistence]
+# Interval in seconds between automatic world saves
+# Set to 0 to disable autosave
+autosave_interval_secs = 300
+
+# Timeout in seconds for graceful shutdown
+# Server will force-exit after this time if tasks don't complete
+shutdown_timeout_secs = 5

@@ -1,0 +1,31 @@
+# Chapter: The Broken Gate
+# MVP Campaign Chapter 1 - Introduction to the storyline
+
+chapter_id = "the_broken_gate"
+title = "The Broken Gate"
+intro_text = """
+Something stirs beneath the abandoned mine. The villagers speak of strange noises
+and shadows that move on their own. Elder Theron believes an ancient evil has awakened
+in the old crypt - a place sealed long ago after the Gate Wars.
+
+Your journey begins here, traveler. Will you answer the call?
+"""
+outro_text = """
+With the Gate Warden defeated, the village is safe once more. But you cannot shake
+the feeling that this was merely the beginning. The Warden spoke of others - of gates
+that span across the world, each holding back something far worse.
+
+The path ahead grows darker, but you have proven yourself worthy.
+"""
+
+# Mainline quests (must complete in order)
+mainline_quests = [
+    "tutorial_elder",
+    "clear_rats",
+    "investigate_cultists",
+    "find_crypt",
+    "defeat_warden"
+]
+
+# Optional side quests
+side_quests = []

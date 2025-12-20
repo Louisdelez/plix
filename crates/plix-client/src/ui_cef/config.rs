@@ -23,6 +23,18 @@ use serde::{Deserialize, Serialize};
 /// cef_devtools = false
 /// cef_initial_page = "index.html"
 /// cef_frame_rate = 60
+/// cef_hud = true
+/// cef_chat = true
+/// cef_scoreboard = true
+/// debug_bridge = false
+/// # Feature 033: Embeds
+/// cef_embeds = true
+/// cef_embeds_youtube = true
+/// cef_embeds_twitch = true
+/// cef_embeds_spotify = false
+/// cef_embeds_autoplay = false
+/// cef_embeds_chat = false
+/// cef_embeds_twitch_parent = "localhost"
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CefConfig {
@@ -41,6 +53,51 @@ pub struct CefConfig {
     /// CEF frame rate limit (default: 60, range: 1-120)
     #[serde(default = "default_frame_rate")]
     pub frame_rate: u32,
+
+    /// Enable CEF HUD overlay (HP, RTT, FPS, crosshair) - Feature 032
+    #[serde(default = "default_enabled")]
+    pub cef_hud: bool,
+
+    /// Enable CEF chat overlay - Feature 032
+    #[serde(default = "default_enabled")]
+    pub cef_chat: bool,
+
+    /// Enable CEF scoreboard overlay - Feature 032
+    #[serde(default = "default_enabled")]
+    pub cef_scoreboard: bool,
+
+    /// Enable bridge message debug logging - Feature 032
+    #[serde(default)]
+    pub debug_bridge: bool,
+
+    // === Feature 033: Media Embeds ===
+    /// Enable media embeds panel (default: true)
+    #[serde(default = "default_enabled")]
+    pub cef_embeds: bool,
+
+    /// Enable YouTube provider (default: true)
+    #[serde(default = "default_enabled")]
+    pub cef_embeds_youtube: bool,
+
+    /// Enable Twitch provider (default: true)
+    #[serde(default = "default_enabled")]
+    pub cef_embeds_twitch: bool,
+
+    /// Enable Spotify provider (default: false, stubbed)
+    #[serde(default)]
+    pub cef_embeds_spotify: bool,
+
+    /// Autoplay videos on load (default: false)
+    #[serde(default)]
+    pub cef_embeds_autoplay: bool,
+
+    /// Show Twitch chat alongside stream (default: false)
+    #[serde(default)]
+    pub cef_embeds_chat: bool,
+
+    /// Twitch embed parent domain (default: "localhost")
+    #[serde(default = "default_twitch_parent")]
+    pub cef_embeds_twitch_parent: String,
 }
 
 fn default_enabled() -> bool {
@@ -55,6 +112,10 @@ fn default_frame_rate() -> u32 {
     60
 }
 
+fn default_twitch_parent() -> String {
+    "localhost".to_string()
+}
+
 impl Default for CefConfig {
     fn default() -> Self {
         Self {
@@ -62,6 +123,18 @@ impl Default for CefConfig {
             devtools: false,
             initial_page: default_initial_page(),
             frame_rate: default_frame_rate(),
+            cef_hud: default_enabled(),
+            cef_chat: default_enabled(),
+            cef_scoreboard: default_enabled(),
+            debug_bridge: false,
+            // Feature 033: Embeds
+            cef_embeds: default_enabled(),
+            cef_embeds_youtube: default_enabled(),
+            cef_embeds_twitch: default_enabled(),
+            cef_embeds_spotify: false,
+            cef_embeds_autoplay: false,
+            cef_embeds_chat: false,
+            cef_embeds_twitch_parent: default_twitch_parent(),
         }
     }
 }
@@ -113,6 +186,19 @@ mod tests {
         assert!(!config.devtools);
         assert_eq!(config.initial_page, "index.html");
         assert_eq!(config.frame_rate, 60);
+        // Feature 032 defaults
+        assert!(config.cef_hud);
+        assert!(config.cef_chat);
+        assert!(config.cef_scoreboard);
+        assert!(!config.debug_bridge);
+        // Feature 033 defaults
+        assert!(config.cef_embeds);
+        assert!(config.cef_embeds_youtube);
+        assert!(config.cef_embeds_twitch);
+        assert!(!config.cef_embeds_spotify);
+        assert!(!config.cef_embeds_autoplay);
+        assert!(!config.cef_embeds_chat);
+        assert_eq!(config.cef_embeds_twitch_parent, "localhost");
     }
 
     #[test]
@@ -193,6 +279,18 @@ mod tests {
             devtools: true,
             initial_page: "custom.html".to_string(),
             frame_rate: 30,
+            cef_hud: false,
+            cef_chat: true,
+            cef_scoreboard: false,
+            debug_bridge: true,
+            // Feature 033 fields
+            cef_embeds: false,
+            cef_embeds_youtube: false,
+            cef_embeds_twitch: true,
+            cef_embeds_spotify: true,
+            cef_embeds_autoplay: true,
+            cef_embeds_chat: true,
+            cef_embeds_twitch_parent: "example.com".to_string(),
         };
 
         let toml_str = toml::to_string(&config).unwrap();
@@ -202,5 +300,21 @@ mod tests {
         assert_eq!(parsed.devtools, config.devtools);
         assert_eq!(parsed.initial_page, config.initial_page);
         assert_eq!(parsed.frame_rate, config.frame_rate);
+        // Feature 032 fields
+        assert_eq!(parsed.cef_hud, config.cef_hud);
+        assert_eq!(parsed.cef_chat, config.cef_chat);
+        assert_eq!(parsed.cef_scoreboard, config.cef_scoreboard);
+        assert_eq!(parsed.debug_bridge, config.debug_bridge);
+        // Feature 033 fields
+        assert_eq!(parsed.cef_embeds, config.cef_embeds);
+        assert_eq!(parsed.cef_embeds_youtube, config.cef_embeds_youtube);
+        assert_eq!(parsed.cef_embeds_twitch, config.cef_embeds_twitch);
+        assert_eq!(parsed.cef_embeds_spotify, config.cef_embeds_spotify);
+        assert_eq!(parsed.cef_embeds_autoplay, config.cef_embeds_autoplay);
+        assert_eq!(parsed.cef_embeds_chat, config.cef_embeds_chat);
+        assert_eq!(
+            parsed.cef_embeds_twitch_parent,
+            config.cef_embeds_twitch_parent
+        );
     }
 }

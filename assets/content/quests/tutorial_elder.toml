@@ -1,0 +1,25 @@
+# Quest: Tutorial - Talk to Elder
+# First quest in the campaign, introduces NPC dialogue
+
+quest_id = "tutorial_elder"
+title = "A Village in Need"
+description_short = "Speak with Elder Theron in the village center"
+description_long = """
+The village of Millbrook has seen better days. Strange happenings have plagued
+the area for weeks now. Elder Theron, the village leader, has requested your help.
+Find him in the village square to learn more about the troubles plaguing the land.
+"""
+chapter_id = "the_broken_gate"
+repeatable = false
+
+[prerequisites]
+# No prerequisites for the tutorial quest
+
+[[steps]]
+type = "TalkToNpc"
+npc_id = "village_elder"
+description = "Speak with Elder Theron in Millbrook"
+
+[rewards]
+xp = 25
+currency = 10

@@ -1,8 +1,9 @@
 /**
- * Settings Page (Feature 031)
+ * Settings Page (Feature 031, Feature 042)
  *
  * Displays and allows modification of game settings.
  * Settings: sensitivity, FOV, fullscreen, audio mute, keybinds
+ * Accessibility: UI scale, high contrast, colorblind presets, subtitles
  */
 
 // Settings constraints (must match Rust constants)
@@ -10,6 +11,24 @@ const SENSITIVITY_MIN = 0.0001;
 const SENSITIVITY_MAX = 0.01;
 const FOV_MIN = 60;
 const FOV_MAX = 110;
+
+// Accessibility constraints (Feature 042)
+const UI_SCALE_MIN = 75;
+const UI_SCALE_MAX = 150;
+const UI_SCALE_DEFAULT = 100;
+
+const COLORBLIND_PRESETS = [
+    { value: 'none', label: 'None' },
+    { value: 'protanopia', label: 'Protanopia (Red-blind)' },
+    { value: 'deuteranopia', label: 'Deuteranopia (Green-blind)' },
+    { value: 'tritanopia', label: 'Tritanopia (Blue-blind)' },
+];
+
+const SUBTITLE_SIZES = [
+    { value: 'small', label: 'Small' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'large', label: 'Large' },
+];
 
 export class SettingsPage {
     /**
@@ -137,6 +156,8 @@ export class SettingsPage {
                     ${this.renderKeybinds()}
                 </div>
             </div>
+
+            ${this.renderAccessibilitySettings()}
         `;
 
         this.attachSettingsListeners();
@@ -170,6 +191,96 @@ export class SettingsPage {
         `
             )
             .join('');
+    }
+
+    /**
+     * Render accessibility settings section (Feature 042)
+     */
+    renderAccessibilitySettings() {
+        const accessibility = this.pendingConfig.accessibility || {
+            ui_scale: UI_SCALE_DEFAULT,
+            high_contrast: false,
+            colorblind_preset: 'none',
+            subtitles: {
+                enabled: false,
+                size: 'medium',
+                background_opacity: 75,
+            },
+        };
+
+        const colorblindOptions = COLORBLIND_PRESETS.map(
+            (p) =>
+                `<option value="${p.value}" ${accessibility.colorblind_preset === p.value ? 'selected' : ''}>${p.label}</option>`
+        ).join('');
+
+        const subtitleSizeOptions = SUBTITLE_SIZES.map(
+            (s) =>
+                `<option value="${s.value}" ${accessibility.subtitles?.size === s.value ? 'selected' : ''}>${s.label}</option>`
+        ).join('');
+
+        return `
+            <div class="form-section">
+                <h3 class="form-section-title">Accessibility</h3>
+
+                <div class="form-group">
+                    <label class="form-label">UI Scale</label>
+                    <div class="range-container">
+                        <input type="range" class="range-input" id="ui-scale"
+                            min="${UI_SCALE_MIN}" max="${UI_SCALE_MAX}" step="5"
+                            value="${accessibility.ui_scale}">
+                        <span class="range-value" id="ui-scale-value">
+                            ${accessibility.ui_scale}%
+                        </span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-container">
+                        <input type="checkbox" class="checkbox-input" id="high-contrast"
+                            ${accessibility.high_contrast ? 'checked' : ''}>
+                        <span class="checkbox-label">High Contrast Mode</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Colorblind Mode</label>
+                    <select id="colorblind-preset" class="select-input">
+                        ${colorblindOptions}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="form-section-title">Subtitles</h3>
+
+                <div class="form-group">
+                    <label class="checkbox-container">
+                        <input type="checkbox" class="checkbox-input" id="subtitles-enabled"
+                            ${accessibility.subtitles?.enabled ? 'checked' : ''}>
+                        <span class="checkbox-label">Enable Subtitles</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Subtitle Size</label>
+                    <select id="subtitle-size" class="select-input">
+                        ${subtitleSizeOptions}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Subtitle Background Opacity</label>
+                    <div class="range-container">
+                        <input type="range" class="range-input" id="subtitle-opacity"
+                            min="0" max="100" step="5"
+                            value="${accessibility.subtitles?.background_opacity ?? 75}">
+                        <span class="range-value" id="subtitle-opacity-value">
+                            ${accessibility.subtitles?.background_opacity ?? 75}%
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     attachSettingsListeners() {
@@ -221,6 +332,125 @@ export class SettingsPage {
         // Global mousedown for keybind capture
         this._mouseHandler = (e) => this.handleMouseCapture(e);
         window.addEventListener('mousedown', this._mouseHandler);
+
+        // === Accessibility settings (Feature 042) ===
+
+        // UI Scale slider
+        const uiScale = document.getElementById('ui-scale');
+        uiScale?.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value, 10);
+            if (!this.pendingConfig.accessibility) {
+                this.pendingConfig.accessibility = {};
+            }
+            this.pendingConfig.accessibility.ui_scale = value;
+            document.getElementById('ui-scale-value').textContent = `${value}%`;
+            // Apply live preview
+            this.applyUiScale(value);
+            this.markDirty();
+        });
+
+        // High contrast toggle
+        const highContrast = document.getElementById('high-contrast');
+        highContrast?.addEventListener('change', (e) => {
+            if (!this.pendingConfig.accessibility) {
+                this.pendingConfig.accessibility = {};
+            }
+            this.pendingConfig.accessibility.high_contrast = e.target.checked;
+            // Apply live preview
+            this.applyHighContrast(e.target.checked);
+            this.markDirty();
+        });
+
+        // Colorblind preset
+        const colorblindPreset = document.getElementById('colorblind-preset');
+        colorblindPreset?.addEventListener('change', (e) => {
+            if (!this.pendingConfig.accessibility) {
+                this.pendingConfig.accessibility = {};
+            }
+            this.pendingConfig.accessibility.colorblind_preset = e.target.value;
+            // Apply live preview
+            this.applyColorblindPreset(e.target.value);
+            this.markDirty();
+        });
+
+        // Subtitles enabled
+        const subtitlesEnabled = document.getElementById('subtitles-enabled');
+        subtitlesEnabled?.addEventListener('change', (e) => {
+            if (!this.pendingConfig.accessibility) {
+                this.pendingConfig.accessibility = { subtitles: {} };
+            }
+            if (!this.pendingConfig.accessibility.subtitles) {
+                this.pendingConfig.accessibility.subtitles = {};
+            }
+            this.pendingConfig.accessibility.subtitles.enabled = e.target.checked;
+            this.markDirty();
+        });
+
+        // Subtitle size
+        const subtitleSize = document.getElementById('subtitle-size');
+        subtitleSize?.addEventListener('change', (e) => {
+            if (!this.pendingConfig.accessibility) {
+                this.pendingConfig.accessibility = { subtitles: {} };
+            }
+            if (!this.pendingConfig.accessibility.subtitles) {
+                this.pendingConfig.accessibility.subtitles = {};
+            }
+            this.pendingConfig.accessibility.subtitles.size = e.target.value;
+            this.markDirty();
+        });
+
+        // Subtitle opacity
+        const subtitleOpacity = document.getElementById('subtitle-opacity');
+        subtitleOpacity?.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value, 10);
+            if (!this.pendingConfig.accessibility) {
+                this.pendingConfig.accessibility = { subtitles: {} };
+            }
+            if (!this.pendingConfig.accessibility.subtitles) {
+                this.pendingConfig.accessibility.subtitles = {};
+            }
+            this.pendingConfig.accessibility.subtitles.background_opacity = value;
+            document.getElementById('subtitle-opacity-value').textContent = `${value}%`;
+            this.markDirty();
+        });
+    }
+
+    /**
+     * Apply UI scale live preview (Feature 042)
+     * @param {number} scale - Scale percentage (75-150)
+     */
+    applyUiScale(scale) {
+        const scaleFactor = scale / 100;
+        document.documentElement.style.setProperty('--ui-scale', scaleFactor);
+    }
+
+    /**
+     * Apply high contrast mode live preview (Feature 042)
+     * @param {boolean} enabled
+     */
+    applyHighContrast(enabled) {
+        if (enabled) {
+            document.documentElement.classList.add('high-contrast');
+        } else {
+            document.documentElement.classList.remove('high-contrast');
+        }
+    }
+
+    /**
+     * Apply colorblind preset live preview (Feature 042)
+     * @param {string} preset
+     */
+    applyColorblindPreset(preset) {
+        // Remove all colorblind classes
+        document.documentElement.classList.remove(
+            'colorblind-protanopia',
+            'colorblind-deuteranopia',
+            'colorblind-tritanopia'
+        );
+        // Add new class if not 'none'
+        if (preset && preset !== 'none') {
+            document.documentElement.classList.add(`colorblind-${preset}`);
+        }
     }
 
     startKeybindEdit(action) {

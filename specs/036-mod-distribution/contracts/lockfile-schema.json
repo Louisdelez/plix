@@ -1,0 +1,115 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://plix.dev/schemas/lockfile-v1.json",
+  "title": "Plix Mod Lockfile v1",
+  "description": "Schema for mods.lock files ensuring reproducible mod installations",
+  "type": "object",
+  "required": ["version", "generated_at", "engine_version", "mods"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Lockfile schema version, always 1 for this schema"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when lockfile was generated (RFC 3339)"
+    },
+    "engine_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+      "description": "Engine version used for compatibility checking"
+    },
+    "mods": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/LockedMod" },
+      "description": "All locked mods in topological order (dependencies first)"
+    }
+  },
+  "definitions": {
+    "ModId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Mod identifier"
+    },
+    "SemVer": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+      "description": "Semantic version string"
+    },
+    "SHA256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 hash (64 hex characters)"
+    },
+    "LockedMod": {
+      "type": "object",
+      "required": ["id", "version", "sha256", "source", "download_url"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/ModId",
+          "description": "Mod identifier"
+        },
+        "version": {
+          "$ref": "#/definitions/SemVer",
+          "description": "Exact locked version"
+        },
+        "sha256": {
+          "$ref": "#/definitions/SHA256",
+          "description": "SHA-256 hash of the bundle for integrity verification"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Name of the source registry"
+        },
+        "download_url": {
+          "type": "string",
+          "description": "Resolved download URL (absolute)"
+        },
+        "dependencies": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ModId" },
+          "default": [],
+          "description": "Direct dependency mod IDs (versions in their own entries)"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "version": 1,
+      "generated_at": "2025-12-18T12:30:00Z",
+      "engine_version": "0.36.0",
+      "mods": [
+        {
+          "id": "core-lib",
+          "version": "1.2.0",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source": "official",
+          "download_url": "https://mods.plix.dev/bundles/core-lib-1.2.0.plixmod",
+          "dependencies": []
+        },
+        {
+          "id": "weapons-pack",
+          "version": "2.0.0",
+          "sha256": "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3",
+          "source": "official",
+          "download_url": "https://mods.plix.dev/bundles/weapons-pack-2.0.0.plixmod",
+          "dependencies": ["core-lib"]
+        },
+        {
+          "id": "custom-maps",
+          "version": "1.0.0",
+          "sha256": "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+          "source": "local",
+          "download_url": "file:///server/mods/bundles/custom-maps-1.0.0.plixmod",
+          "dependencies": []
+        }
+      ]
+    }
+  ]
+}

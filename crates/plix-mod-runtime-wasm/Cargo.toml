@@ -1,0 +1,35 @@
+[package]
+name = "plix-mod-runtime-wasm"
+description = "WASM-based sandboxed mod runtime for plix"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+# Core dependencies
+plix-mod-core = { workspace = true }
+plix-common = { workspace = true }
+
+# WASM runtime - Wasmtime with fuel metering (no WASI)
+wasmtime = { version = "27", default-features = false, features = [
+    "cranelift",             # JIT compiler
+    "runtime",               # Core runtime
+    "parallel-compilation",  # Faster module compilation
+] }
+
+# Serialization
+serde = { workspace = true }
+bincode = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# Math (for IVec3, Vec3 in payloads)
+glam = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

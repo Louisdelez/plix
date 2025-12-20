@@ -1,7 +1,7 @@
 //! JSON serialization utilities for bridge messages (Feature 031)
 
 use super::messages::{BridgeError, BridgePush, BridgeRequest, BridgeResponse};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Maximum string lengths for sanitization
@@ -130,6 +130,73 @@ pub fn validate_address(addr: &str) -> Result<String, BridgeError> {
     }
 
     Ok(addr.to_string())
+}
+
+// === Feature 033: Embed Payloads ===
+
+/// Payload for EmbedLoad request
+#[derive(Debug, Clone, Deserialize)]
+pub struct EmbedLoadPayload {
+    /// Provider name (youtube, twitch, spotify)
+    pub provider: String,
+
+    /// URL or direct ID
+    pub url_or_id: String,
+}
+
+/// Payload for EmbedState push
+#[derive(Debug, Clone, Serialize)]
+pub struct EmbedStatePayload {
+    /// Panel visibility
+    pub visible: bool,
+
+    /// Panel has input focus
+    pub focused: bool,
+
+    /// Current provider (null if empty)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+
+    /// Current embed URL (null if empty)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embed_url: Option<String>,
+
+    /// Twitch chat URL (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chat_url: Option<String>,
+
+    /// Slot state: empty, loading, playing, error
+    pub state: String,
+}
+
+impl Default for EmbedStatePayload {
+    fn default() -> Self {
+        Self {
+            visible: false,
+            focused: false,
+            provider: None,
+            embed_url: None,
+            chat_url: None,
+            state: "empty".to_string(),
+        }
+    }
+}
+
+/// Payload for EmbedLoad response (success)
+#[derive(Debug, Clone, Serialize)]
+pub struct EmbedLoadResponsePayload {
+    /// Canonical embed URL to load in iframe
+    pub embed_url: String,
+}
+
+/// Payload for EmbedError push
+#[derive(Debug, Clone, Serialize)]
+pub struct EmbedErrorPayload {
+    /// Error code (EEMB001-004)
+    pub code: String,
+
+    /// User-friendly message
+    pub message: String,
 }
 
 #[cfg(test)]

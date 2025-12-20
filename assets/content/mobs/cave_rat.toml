@@ -1,0 +1,22 @@
+# Mob: Cave Rat
+# Basic trash mob for the mine area
+
+mob_id = "cave_rat"
+display_name = "Cave Rat"
+loot_table = "cave_rat_drops"
+xp_reward = 10
+credit_reward = 5
+tags = ["beast", "trash"]
+
+[stats]
+hp = 20
+damage = 5
+speed = 4.0
+armor = 0
+aggro_radius = 8.0
+leash_radius = 20.0
+attack_range = 1.5
+attack_cooldown = 1.0
+
+[behavior]
+type = "Aggro"

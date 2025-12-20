@@ -1,15 +1,22 @@
 //! Binary codec for protocol messages
+//!
+//! Provides safe encoding/decoding with size validation to prevent
+//! allocation attacks and OOM conditions.
 
 use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
 
 use super::MAX_PAYLOAD_SIZE;
+use crate::limits::MAX_MESSAGE_BYTES;
 
 /// Protocol encoding/decoding errors
 #[derive(Debug, Error)]
 pub enum ProtocolError {
     #[error("Message too large: {0} bytes (max {MAX_PAYLOAD_SIZE})")]
     MessageTooLarge(usize),
+
+    #[error("Message exceeds decode limit: {actual} bytes (max {limit})")]
+    DecodeSizeLimitExceeded { actual: usize, limit: usize },
 
     #[error("Failed to encode message: {0}")]
     EncodeError(#[from] bincode::Error),
@@ -19,6 +26,28 @@ pub enum ProtocolError {
 
     #[error("Invalid protocol version: expected {expected}, got {got}")]
     VersionMismatch { expected: u8, got: u8 },
+
+    #[error("String field too long: {field} has {len} bytes (max {max})")]
+    StringTooLong {
+        field: &'static str,
+        len: usize,
+        max: usize,
+    },
+
+    #[error("List field too long: {field} has {len} elements (max {max})")]
+    ListTooLong {
+        field: &'static str,
+        len: usize,
+        max: usize,
+    },
+
+    #[error("Value out of bounds: {field} = {value} (range: {min}..{max})")]
+    ValueOutOfBounds {
+        field: &'static str,
+        value: i64,
+        min: i64,
+        max: i64,
+    },
 }
 
 /// Encode a message to bytes
@@ -30,8 +59,36 @@ pub fn encode<T: Serialize>(message: &T) -> Result<Vec<u8>, ProtocolError> {
     Ok(bytes)
 }
 
-/// Decode a message from bytes
+/// Decode a message from bytes with size validation.
+///
+/// # Security
+///
+/// This function validates the input size before attempting deserialization
+/// to prevent allocation attacks from oversized payloads.
 pub fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, ProtocolError> {
+    // Pre-decode size validation to prevent allocation attacks
+    if bytes.len() > MAX_MESSAGE_BYTES {
+        return Err(ProtocolError::DecodeSizeLimitExceeded {
+            actual: bytes.len(),
+            limit: MAX_MESSAGE_BYTES,
+        });
+    }
+    bincode::deserialize(bytes).map_err(|e| ProtocolError::DecodeError(e.to_string()))
+}
+
+/// Decode a message from bytes with explicit size limit.
+///
+/// Use this when you need a different limit than the default MAX_MESSAGE_BYTES.
+pub fn decode_with_limit<T: DeserializeOwned>(
+    bytes: &[u8],
+    max_bytes: usize,
+) -> Result<T, ProtocolError> {
+    if bytes.len() > max_bytes {
+        return Err(ProtocolError::DecodeSizeLimitExceeded {
+            actual: bytes.len(),
+            limit: max_bytes,
+        });
+    }
     bincode::deserialize(bytes).map_err(|e| ProtocolError::DecodeError(e.to_string()))
 }
 

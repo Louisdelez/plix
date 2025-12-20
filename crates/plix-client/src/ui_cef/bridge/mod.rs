@@ -127,6 +127,26 @@ impl BridgeDispatcher {
                 // who has access to game state
                 BridgeResponse::success_empty(&request.id, msg_type.as_str())
             }
+            // Feature 032: In-game UI message types
+            // These are handled by the ingame overlay coordinator, not here
+            MessageType::ChatSend
+            | MessageType::ChatOpen
+            | MessageType::ChatClose
+            | MessageType::ChatClear => {
+                // Return placeholder - actual handling in ingame module
+                BridgeResponse::success_empty(&request.id, msg_type.as_str())
+            }
+            // Feature 033: Media Embeds
+            // These are handled by the embeds module, not here
+            MessageType::EmbedOpenPanel
+            | MessageType::EmbedClosePanel
+            | MessageType::EmbedFocus
+            | MessageType::EmbedUnfocus
+            | MessageType::EmbedLoad
+            | MessageType::EmbedStop => {
+                // Return placeholder - actual handling in embeds module
+                BridgeResponse::success_empty(&request.id, msg_type.as_str())
+            }
         };
 
         debug!(

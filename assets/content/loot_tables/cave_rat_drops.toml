@@ -1,0 +1,21 @@
+# Loot Table: Cave Rat Drops
+# Basic drops from cave rats
+
+loot_table_id = "cave_rat_drops"
+
+# Guaranteed drops (always drop)
+[[guaranteed]]
+item_id = { raw = 1 }  # Rat Tail
+quantity = [1, 1]
+chance = 1.0
+
+# Random drops
+[[entries]]
+item_id = { raw = 10 }  # Small Health Potion
+quantity = [1, 1]
+chance = 0.15
+
+[[entries]]
+item_id = { raw = 100 }  # Copper Coin
+quantity = [1, 3]
+chance = 0.50

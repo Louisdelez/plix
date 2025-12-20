@@ -1,0 +1,33 @@
+# Quest: Investigate Cultists
+# Transition quest introducing the cultist enemies
+
+quest_id = "investigate_cultists"
+title = "Dark Robes"
+description_short = "Investigate reports of hooded figures in the mine"
+description_long = """
+With the rats cleared, the miners reported seeing hooded figures deeper in
+the tunnels. These cultists appear to be performing some kind of ritual.
+Elder Theron fears they may be trying to open the old Gate.
+
+Investigate and eliminate the cultist threat before it's too late.
+"""
+chapter_id = "the_broken_gate"
+repeatable = false
+
+[prerequisites]
+completed_quests = ["clear_rats"]
+
+[[steps]]
+type = "KillMob"
+mob_id = "cultist"
+count = 3
+description = "Defeat 3 Cultists in the mine depths"
+
+[[steps]]
+type = "VisitLocation"
+region_id = "ritual_chamber"
+description = "Find the ritual chamber"
+
+[rewards]
+xp = 150
+currency = 75

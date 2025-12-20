@@ -1,0 +1,41 @@
+# Loot Table: Gate Warden Drops
+# Boss drops from the Gate Warden
+
+loot_table_id = "gate_warden_drops"
+
+# Guaranteed drops (always drop from boss)
+[[guaranteed]]
+item_id = { raw = 3 }  # Warden's Key (quest item)
+quantity = [1, 1]
+chance = 1.0
+
+[[guaranteed]]
+item_id = { raw = 101 }  # Silver Coin
+quantity = [20, 30]
+chance = 1.0
+
+[[guaranteed]]
+item_id = { raw = 11 }  # Medium Health Potion
+quantity = [2, 3]
+chance = 1.0
+
+# Random drops (boss has better chances)
+[[entries]]
+item_id = { raw = 102 }  # Gold Coin
+quantity = [5, 10]
+chance = 0.50
+
+[[entries]]
+item_id = { raw = 201 }  # Warden's Blade (rare weapon)
+quantity = [1, 1]
+chance = 0.15
+
+[[entries]]
+item_id = { raw = 300 }  # Warden's Helm (armor)
+quantity = [1, 1]
+chance = 0.10
+
+[[entries]]
+item_id = { raw = 12 }  # Large Health Potion
+quantity = [1, 2]
+chance = 0.40

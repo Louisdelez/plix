@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plix In-Game Overlay</title>
+    <link rel="stylesheet" href="overlay.css">
+</head>
+<body>
+    <!-- HUD Container (top-left) -->
+    <div id="hud" class="hud-container">
+        <div class="hp-bar">
+            <div class="hp-fill" id="hp-fill"></div>
+            <span class="hp-value" id="hp-value">100</span>
+        </div>
+        <div class="stats">
+            <span class="rtt" id="rtt">-- ms</span>
+            <span class="fps" id="fps"></span>
+        </div>
+    </div>
+
+    <!-- Crosshair (center) -->
+    <div id="crosshair" class="crosshair">
+        <div class="crosshair-h"></div>
+        <div class="crosshair-v"></div>
+    </div>
+
+    <!-- Chat Container (bottom-left) -->
+    <div id="chat" class="chat-container">
+        <div class="chat-history" id="chat-history">
+            <!-- Messages will be inserted here -->
+        </div>
+        <div class="chat-input-container" id="chat-input-container" style="display: none;">
+            <input type="text" id="chat-input" class="chat-input"
+                   placeholder="Press Enter to chat..."
+                   maxlength="200"
+                   autocomplete="off">
+        </div>
+    </div>
+
+    <!-- Toast Notifications (bottom-left, above chat) -->
+    <div id="toasts" class="toast-container">
+        <!-- Toasts will be inserted here -->
+    </div>
+
+    <!-- Scoreboard Container (center overlay) -->
+    <div id="scoreboard" class="scoreboard-container" style="display: none;">
+        <div class="scoreboard-header">
+            <h2 id="server-name">Server Name</h2>
+        </div>
+        <div class="scoreboard-content">
+            <table class="scoreboard-table">
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th>Kills</th>
+                        <th>Deaths</th>
+                        <th>Ping</th>
+                    </tr>
+                </thead>
+                <tbody id="scoreboard-body">
+                    <!-- Rows will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Subtitle Overlay (bottom center, Feature 042) -->
+    <div id="subtitles" class="subtitle-overlay">
+        <!-- Subtitles will be inserted here -->
+    </div>
+
+    <!-- NPC Dialogue Panel (center-bottom, Feature 043) -->
+    <div id="dialogue-panel" class="dialogue-panel-container" style="display: none;">
+        <div class="dialogue-header">
+            <span class="dialogue-npc-name" id="dialogue-npc-name">NPC Name</span>
+        </div>
+        <div class="dialogue-content">
+            <div class="dialogue-lines" id="dialogue-lines">
+                <!-- Lines will be inserted here -->
+            </div>
+            <div class="dialogue-options" id="dialogue-options">
+                <!-- Options will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Dungeon HUD Overlay (top-right, Feature 043) -->
+    <div id="dungeon-hud" class="dungeon-hud-container" style="display: none;">
+        <div class="dungeon-header">
+            <span class="dungeon-icon">⚔</span>
+            <span class="dungeon-name" id="dungeon-name">Unknown Dungeon</span>
+        </div>
+        <div class="dungeon-objective" id="dungeon-objective">
+            Defeat the boss
+        </div>
+        <div class="dungeon-boss-hp" id="dungeon-boss-hp-container" style="display: none;">
+            <div class="boss-name" id="boss-name">Boss</div>
+            <div class="boss-hp-bar">
+                <div class="boss-hp-fill" id="boss-hp-fill"></div>
+            </div>
+            <div class="boss-hp-text" id="boss-hp-text">100%</div>
+        </div>
+        <div class="dungeon-chest" id="dungeon-chest-container" style="display: none;">
+            <span class="chest-icon">📦</span>
+            <span class="chest-text">Reward chest available!</span>
+        </div>
+    </div>
+
+    <script src="overlay.js"></script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plix - Media Embeds</title>
+    <link rel="stylesheet" href="embeds.css">
+</head>
+<body>
+    <!-- Embed Panel Container -->
+    <div id="embed-panel" class="embed-panel hidden">
+        <!-- Panel Header -->
+        <div class="embed-header">
+            <div class="embed-title">Media</div>
+            <div class="embed-controls">
+                <button id="embed-stop-btn" class="embed-btn" title="Stop">Stop</button>
+                <button id="embed-close-btn" class="embed-btn" title="Close (F8)">X</button>
+            </div>
+        </div>
+
+        <!-- URL Input Section -->
+        <div class="embed-input-section">
+            <input
+                type="text"
+                id="embed-url-input"
+                class="embed-url-input"
+                placeholder="Paste YouTube or Twitch URL..."
+                autocomplete="off"
+            >
+            <button id="embed-load-btn" class="embed-btn embed-load-btn">Load</button>
+        </div>
+
+        <!-- Error Zone -->
+        <div id="embed-error" class="embed-error hidden">
+            <span class="embed-error-code"></span>
+            <span class="embed-error-message"></span>
+        </div>
+
+        <!-- Iframe Slot -->
+        <div class="embed-content">
+            <iframe
+                id="embed-iframe"
+                class="embed-iframe"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen
+            ></iframe>
+            <!-- Twitch Chat Iframe (optional, hidden by default) -->
+            <iframe
+                id="embed-chat-iframe"
+                class="embed-chat-iframe hidden"
+                frameborder="0"
+            ></iframe>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="embed-status">
+            <span id="embed-provider" class="embed-provider"></span>
+            <span id="embed-state" class="embed-state">Empty</span>
+        </div>
+    </div>
+
+    <!-- Debug Overlay (hidden by default) -->
+    <div id="embed-debug" class="embed-debug hidden">
+        <div>Provider: <span id="debug-provider">-</span></div>
+        <div>URL: <span id="debug-url">-</span></div>
+        <div>Focused: <span id="debug-focused">false</span></div>
+        <div>Visible: <span id="debug-visible">false</span></div>
+    </div>
+
+    <script src="embeds.js"></script>
+</body>
+</html>

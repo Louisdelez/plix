@@ -126,6 +126,16 @@ impl ItemId {
     /// Scrap resource (crafting ingredient)
     pub const SCRAP: Self = Self(5);
 
+    /// Create from raw u16 value
+    pub const fn new_raw(raw: u16) -> Self {
+        Self(raw)
+    }
+
+    /// Get the raw u16 value
+    pub const fn raw(&self) -> u16 {
+        self.0
+    }
+
     /// Check if this is a valid item ID
     pub fn is_valid(&self) -> bool {
         *self != Self::NONE

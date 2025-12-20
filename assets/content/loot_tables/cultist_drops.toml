@@ -1,0 +1,36 @@
+# Loot Table: Cultist Drops
+# Drops from dark cultists
+
+loot_table_id = "cultist_drops"
+
+# Guaranteed drops
+[[guaranteed]]
+item_id = { raw = 2 }  # Dark Cloth
+quantity = [1, 2]
+chance = 1.0
+
+# Random drops
+[[entries]]
+item_id = { raw = 10 }  # Small Health Potion
+quantity = [1, 2]
+chance = 0.30
+
+[[entries]]
+item_id = { raw = 11 }  # Medium Health Potion
+quantity = [1, 1]
+chance = 0.10
+
+[[entries]]
+item_id = { raw = 100 }  # Copper Coin
+quantity = [5, 15]
+chance = 0.75
+
+[[entries]]
+item_id = { raw = 101 }  # Silver Coin
+quantity = [1, 2]
+chance = 0.20
+
+[[entries]]
+item_id = { raw = 200 }  # Ritual Dagger (weapon)
+quantity = [1, 1]
+chance = 0.05

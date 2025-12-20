@@ -17,6 +17,9 @@ default = []
 # Falls back to native UI (Feature 005) when disabled or unavailable
 cef-ui = []
 
+[build-dependencies]
+shadow-rs = { workspace = true }
+
 [dependencies]
 plix-common = { workspace = true }
 plix-net = { workspace = true }

@@ -1,0 +1,63 @@
+# Plix Server Mods Configuration
+#
+# This file configures which mods are loaded and their settings.
+# Mods are loaded in the order they appear in this file.
+#
+# Usage:
+#   ./plix-server-headless --config server.toml --mods-config server_mods.toml
+
+# Global mod settings
+[mods]
+# Enable or disable all mod loading
+enabled = true
+
+# Directory to search for local mods
+# Relative paths are relative to the server binary location
+local_mods_dir = "./mods"
+
+# Directory for downloaded mod cache
+cache_dir = "~/.local/share/plix/mods"
+
+# Whether to allow mods to be downloaded from registries
+allow_remote = true
+
+# Trusted mod registries (URLs)
+# Mods will only be downloaded from these sources
+trusted_registries = [
+    "https://mods.plix.game/v1",
+]
+
+# Individual mod configurations
+# Each [[mod]] entry defines a mod to load
+
+# Example: A simple server-side mod
+# [[mod]]
+# name = "welcome-message"
+# version = "1.0.0"
+# enabled = true
+#
+# # Mod-specific settings (varies by mod)
+# [mod.settings]
+# message = "Welcome to the server!"
+# show_rules = true
+
+# Example: A gameplay mod from registry
+# [[mod]]
+# name = "double-jump"
+# version = "^2.0"  # SemVer range
+# source = "registry"  # "local" or "registry"
+# enabled = true
+#
+# [mod.settings]
+# max_jumps = 2
+# jump_cooldown_ms = 500
+
+# Example: A local development mod
+# [[mod]]
+# name = "my-custom-mod"
+# source = "local"
+# path = "./mods/my-custom-mod"  # Path to mod directory
+# enabled = true
+#
+# [mod.settings]
+# debug_mode = true

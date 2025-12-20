@@ -1,0 +1,276 @@
+/* CEF Media Embeds Panel Styles (Feature 033) */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background: transparent;
+    color: #e0e0e0;
+    overflow: hidden;
+}
+
+/* Panel Container */
+.embed-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 800px;
+    max-width: 90vw;
+    background: rgba(20, 20, 25, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+}
+
+.embed-panel.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0.95);
+}
+
+.embed-panel.focused {
+    border-color: rgba(100, 150, 255, 0.5);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(100, 150, 255, 0.3);
+}
+
+/* Panel Header */
+.embed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(30, 30, 35, 0.9);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.embed-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.embed-controls {
+    display: flex;
+    gap: 8px;
+}
+
+/* Buttons */
+.embed-btn {
+    background: rgba(60, 60, 70, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    color: #e0e0e0;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.1s ease;
+}
+
+.embed-btn:hover {
+    background: rgba(80, 80, 90, 0.9);
+}
+
+.embed-btn:active {
+    background: rgba(50, 50, 60, 0.9);
+}
+
+.embed-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* URL Input Section */
+.embed-input-section {
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(25, 25, 30, 0.9);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.embed-url-input {
+    flex: 1;
+    background: rgba(40, 40, 50, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    color: #ffffff;
+    padding: 8px 12px;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.1s ease;
+}
+
+.embed-url-input:focus {
+    border-color: rgba(100, 150, 255, 0.5);
+}
+
+.embed-url-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.embed-load-btn {
+    background: rgba(60, 120, 200, 0.8);
+    min-width: 60px;
+}
+
+.embed-load-btn:hover {
+    background: rgba(70, 140, 220, 0.9);
+}
+
+/* Error Zone */
+.embed-error {
+    padding: 8px 12px;
+    background: rgba(180, 60, 60, 0.2);
+    border-bottom: 1px solid rgba(200, 80, 80, 0.3);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.embed-error.hidden {
+    display: none;
+}
+
+.embed-error-code {
+    background: rgba(200, 80, 80, 0.3);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 11px;
+    color: #ff8888;
+}
+
+.embed-error-message {
+    color: #ffaaaa;
+}
+
+/* Content Area */
+.embed-content {
+    position: relative;
+    flex: 1;
+    display: flex;
+    min-height: 400px;
+    background: #000;
+}
+
+.embed-iframe {
+    width: 100%;
+    height: 100%;
+    background: #000;
+}
+
+/* Twitch Chat Layout */
+.embed-content.with-chat .embed-iframe {
+    width: 70%;
+}
+
+.embed-chat-iframe {
+    width: 30%;
+    height: 100%;
+    background: rgba(20, 20, 25, 1);
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.embed-chat-iframe.hidden {
+    display: none;
+}
+
+/* Status Bar */
+.embed-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    background: rgba(30, 30, 35, 0.9);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 11px;
+}
+
+.embed-provider {
+    color: #888;
+    font-weight: 500;
+}
+
+.embed-provider.youtube {
+    color: #ff0000;
+}
+
+.embed-provider.twitch {
+    color: #9147ff;
+}
+
+.embed-provider.spotify {
+    color: #1db954;
+}
+
+.embed-state {
+    color: #888;
+    text-transform: capitalize;
+}
+
+.embed-state.playing {
+    color: #4caf50;
+}
+
+.embed-state.loading {
+    color: #ffb300;
+}
+
+.embed-state.error {
+    color: #ff5252;
+}
+
+/* Debug Overlay */
+.embed-debug {
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 11px;
+    color: #0f0;
+    z-index: 9999;
+}
+
+.embed-debug.hidden {
+    display: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+    .embed-panel {
+        width: 95vw;
+    }
+
+    .embed-content {
+        min-height: 300px;
+    }
+
+    .embed-content.with-chat {
+        flex-direction: column;
+    }
+
+    .embed-content.with-chat .embed-iframe {
+        width: 100%;
+        height: 60%;
+    }
+
+    .embed-content.with-chat .embed-chat-iframe {
+        width: 100%;
+        height: 40%;
+        border-left: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+}

@@ -1,0 +1,32 @@
+# Quest: Find the Crypt
+# Discovery quest leading to the dungeon
+
+quest_id = "find_crypt"
+title = "The Hidden Passage"
+description_short = "Find the entrance to the Crypt of the Gate"
+description_long = """
+In the ritual chamber, you discovered ancient markings pointing to a hidden
+passage - the entrance to the Crypt of the Gate itself. The cultists were
+trying to awaken the Gate Warden, an ancient guardian corrupted by dark magic.
+
+You must find the crypt entrance before more cultists arrive.
+"""
+chapter_id = "the_broken_gate"
+repeatable = false
+
+[prerequisites]
+completed_quests = ["investigate_cultists"]
+
+[[steps]]
+type = "VisitLocation"
+region_id = "crypt_entrance"
+description = "Locate the entrance to the Crypt of the Gate"
+
+[[steps]]
+type = "TalkToNpc"
+npc_id = "village_elder"
+description = "Report your discovery to Elder Theron"
+
+[rewards]
+xp = 100
+currency = 50
